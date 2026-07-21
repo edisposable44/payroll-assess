@@ -4,3 +4,16 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# Prevent browsers/CDN from caching the app shell so every redeploy is
+# immediately visible to recruiters AND candidates (no stale "old version"
+# served from cache after a fix).
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
