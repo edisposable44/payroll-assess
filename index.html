@@ -357,6 +357,7 @@ select.input{cursor:pointer}
       <div class="stat-card"><div class="stat-lbl">Ouvertes</div><div class="stat-val" id="stat-open" style="color:var(--gold)">0</div></div>
       <div class="stat-card"><div class="stat-lbl">Terminées</div><div class="stat-val" id="stat-done" style="color:var(--green)">0</div></div>
       <div class="stat-card"><div class="stat-lbl">Moy. score</div><div class="stat-val" id="stat-avg" style="color:var(--teal)">—</div></div>
+    </div><!-- /stats-grid -->
 
     <!-- ── FILTRES TABLEAU CANDIDATS ─────────────────────────────────────── -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;align-items:flex-end">
@@ -387,7 +388,6 @@ select.input{cursor:pointer}
         <input type="date" id="sf-to" class="input" onchange="renderSessions()">
       </div>
       <button class="btn btn-teal btn-sm" onclick="resetSessionFilters()" style="white-space:nowrap">↺ Réinitialiser</button>
-    </div>
     </div>
     <div class="table-wrap">
       <table class="table" id="sessions-table">
