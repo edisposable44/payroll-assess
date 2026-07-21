@@ -456,6 +456,13 @@ select.input{cursor:pointer}
             <div class="input-hint">Min 5 · Max 30 · Défaut 10</div>
           </div>
         </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;margin:16px 0;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs)">
+          <input type="checkbox" id="cfg-allow-pdf" checked style="width:18px;height:18px;margin-top:2px;accent-color:var(--teal);flex-shrink:0">
+          <div>
+            <label for="cfg-allow-pdf" style="font-weight:600;font-size:13px;cursor:pointer">Autoriser le candidat à télécharger sa correction PDF</label>
+            <div class="input-hint" style="margin-top:2px">Si décoché, le bouton de téléchargement n'apparaît plus dans l'espace candidat. S'applique aux nouvelles sessions créées.</div>
+          </div>
+        </div>
         <button class="btn btn-primary btn-sm" onclick="saveDefaults()">Enregistrer les paramètres</button>
       </div>
       <div class="card">
@@ -747,7 +754,7 @@ select.input{cursor:pointer}
       <div id="res-next-box"></div>
       <div class="divider"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="downloadCandidatePDF()">📥 Télécharger ma correction</button>
+        <button class="btn btn-primary" id="res-download-btn" onclick="downloadCandidatePDF()">📥 Télécharger ma correction</button>
         <button class="btn btn-ghost" onclick="showScreen('s-landing')">Retour à l'accueil</button>
       </div>
     </div>
@@ -843,9 +850,13 @@ async function atReq(table,method='GET',body=null,id='',qs=''){
   // Calls the Netlify Functions proxy — the Airtable token lives ONLY server-side
   // (Netlify env vars AIRTABLE_TOKEN / AIRTABLE_BASE_ID). Works identically for
   // recruiter AND applicant browsers since both hit the same serverless endpoint.
-  const path=id?(table+'/'+id):table;
+  // table and id are sent as SEPARATE params so the proxy can encode each segment
+  // individually — encoding "table/id" as one string turns "/" into "%2F" and
+  // silently breaks every PATCH / get-by-id request against Airtable.
   const cleanQs=qs.startsWith('?')?qs.slice(1):qs;
-  const url='/.netlify/functions/airtable?path='+encodeURIComponent(path)+(cleanQs?'&qs='+encodeURIComponent(cleanQs):'');
+  let url='/.netlify/functions/airtable?table='+encodeURIComponent(table);
+  if(id)url+='&id='+encodeURIComponent(id);
+  if(cleanQs)url+='&qs='+encodeURIComponent(cleanQs);
   const opts={method,headers:{'Content-Type':'application/json'}};
   if(body){
     if(method==='POST'||method==='PATCH')body.typecast=true;
@@ -899,6 +910,7 @@ async function atGetSessions(pinFilter=null){
       profil:rec.fields.Profil||'',
       duree:rec.fields.Duree_min||7,
       nq:rec.fields.Nq||rec.fields.fldBKNQJzEDpCJbxc||(lsGetSessions().find(s=>s.pin===pin)||{}).nq||10,
+      allowPdf:rec.fields.Allow_PDF!==false,
       status:normSt(rec.fields.Statut||'ouverte'),
       createdAt:rec.fields.Ouvert_le||new Date().toISOString(),
       ...res
@@ -909,7 +921,7 @@ async function atGetSessions(pinFilter=null){
 async function atCreateSession(s){
   const r=await atReq('Sessions','POST',{fields:{
     PIN:s.pin,Nom:s.nom,Prenom:s.prenom,Profil:s.profil,
-    Duree_min:s.duree,Nq:s.nq||10,
+    Duree_min:s.duree,Nq:s.nq||10,Allow_PDF:s.allowPdf!==false,
     Statut:'ouverte',Ouvert_le:new Date().toISOString()
   }});
   return r?.id||null;
@@ -1185,7 +1197,8 @@ async function createSession(){
   if(!nom||!prenom||!profil){$('new-err').textContent='Veuillez remplir tous les champs.';$('new-err').style.display='block';return;}
   $('new-err').style.display='none';
   const pin=genPIN();
-  const s={pin,nom,prenom,profil,duree,nq,status:'ouverte',score:null,createdAt:new Date().toISOString()};
+  const allowPdf=CFG.get('allow_candidate_pdf',true);
+  const s={pin,nom,prenom,profil,duree,nq,allowPdf,status:'ouverte',score:null,createdAt:new Date().toISOString()};
   await saveNewSession(s);
   State.sessions.unshift(s);
   $('pin-display').textContent=pin;
@@ -1302,8 +1315,9 @@ function saveComment(pin){
 function loadSettings(){
   $('cfg-duree').value=CFG.get('default_duree',7);
   $('cfg-nq').value=CFG.get('default_nq',10);
+  $('cfg-allow-pdf').checked=CFG.get('allow_candidate_pdf',true);
 }
-function saveDefaults(){CFG.set('default_duree',parseInt($('cfg-duree').value)||7);CFG.set('default_nq',parseInt($('cfg-nq').value)||10);alert('Paramètres enregistrés.');}
+function saveDefaults(){CFG.set('default_duree',parseInt($('cfg-duree').value)||7);CFG.set('default_nq',parseInt($('cfg-nq').value)||10);CFG.set('allow_candidate_pdf',$('cfg-allow-pdf').checked);alert('Paramètres enregistrés.');}
 
 async function testAirtable(){
   const box=$('at-status-text');
@@ -1632,7 +1646,7 @@ async function finishQuiz(timedOut=false){
   const result={pin:session.pin,nom:session.nom||'',prenom:session.prenom||'',profil:session.profil||'',score,niveauLabel:lv.label,bh,dureeReelle:elapsed,timedOut:timedOutFlag,answeredCount:State.cand.ans.length,totalCount:State.cand.qs.length,snapshot,createdAt:new Date().toISOString()};
   // Update session locally
   const arr=lsGetSessions();const idx=arr.findIndex(x=>x.pin===session.pin);
-  if(idx>=0){Object.assign(arr[idx],{status:'done',score,niveauLabel:lv.label,bh,dureeReelle:elapsed,timedOut:timedOutFlag,answeredCount:State.cand.ans.length,totalCount:State.cand.qs.length,snapshot:JSON.stringify(snapshot),_id:session._id||arr[idx]._id});lsSaveSessions(arr);}
+  if(idx>=0){Object.assign(arr[idx],{status:'done',score,niveauLabel:lv.label,bh,dureeReelle:elapsed,timedOut:timedOutFlag,answeredCount:State.cand.ans.length,totalCount:State.cand.qs.length,allowPdf:session.allowPdf,snapshot:JSON.stringify(snapshot),_id:session._id||arr[idx]._id});lsSaveSessions(arr);}
   lsSaveResult(result);  // Always save result to localStorage too
   // Save to Airtable
   if(!!session._id){
@@ -1657,6 +1671,7 @@ function renderResults(score,lv,bh,elapsed,session){
   $('res-level-pill').style.background=lvStyle.bg;$('res-level-pill').style.color=lvStyle.c;
   $('res-level-pill').textContent=lv.label;
   $('res-comment').textContent=lv.cmt;
+  const dlBtn=$('res-download-btn');if(dlBtn)dlBtn.style.display=(session.allowPdf===false)?'none':'';
   const toNote=$('res-timeout-note');
   if(toNote){toNote.style.display=State.cand.timedOut?'block':'none';
   if(State.cand.timedOut){const ac=State.cand.ans.length,tc=State.cand.qs.length;toNote.textContent=`⏱ Temps écoulé — ${ac} question(s) sur ${tc} répondues. Seules les réponses données ont été comptabilisées.`;}}
