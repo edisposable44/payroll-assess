@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PayrollAssess — Évaluation Paie · iiPay</title>
@@ -910,7 +913,7 @@ async function atGetSessions(pinFilter=null){
       profil:rec.fields.Profil||'',
       duree:rec.fields.Duree_min||7,
       nq:rec.fields.Nq||rec.fields.fldBKNQJzEDpCJbxc||(lsGetSessions().find(s=>s.pin===pin)||{}).nq||10,
-      allowPdf:rec.fields.Allow_PDF!==false,
+      allowPdf:rec.fields.PDF_Autorise!=='Non',  // single-select is always explicit — 'Non' is unambiguous, absent/other defaults to allowed
       status:normSt(rec.fields.Statut||'ouverte'),
       createdAt:rec.fields.Ouvert_le||new Date().toISOString(),
       ...res
@@ -921,7 +924,7 @@ async function atGetSessions(pinFilter=null){
 async function atCreateSession(s){
   const r=await atReq('Sessions','POST',{fields:{
     PIN:s.pin,Nom:s.nom,Prenom:s.prenom,Profil:s.profil,
-    Duree_min:s.duree,Nq:s.nq||10,Allow_PDF:s.allowPdf!==false,
+    Duree_min:s.duree,Nq:s.nq||10,PDF_Autorise:(s.allowPdf!==false)?'Oui':'Non',
     Statut:'ouverte',Ouvert_le:new Date().toISOString()
   }});
   return r?.id||null;
