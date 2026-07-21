@@ -1721,7 +1721,8 @@ function downloadCandidatePDF(){
 
   // ── SCORE BOX ──────────────────────────────────────────────────────────────
   const rawScore=ans.reduce((s,a)=>s+(a.score||0),0);
-  const tot=parseFloat(Math.max(0,Math.min(20,rawScore)).toFixed(1));
+  const maxPts=(ans.length*2)||20; // normalize on the ACTUAL question count (fixes wrong score for nq≠10 sessions)
+  const tot=parseFloat(Math.max(0,Math.min(20,(rawScore/maxPts)*20)).toFixed(1));
   const lv=detLevel(tot);
   doc.setFillColor(...LBLUE);doc.roundedRect(M,y,CW,26,3,3,'F');
   doc.setTextColor(...NAVY);doc.setFont('helvetica','bold');doc.setFontSize(24);
