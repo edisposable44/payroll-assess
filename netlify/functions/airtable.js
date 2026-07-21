@@ -2,7 +2,7 @@
 // Serverless proxy: hides the Airtable token from the browser entirely.
 // Both the recruiter AND the applicant call THIS function — never Airtable directly.
 //
-// Required environment variables (set in Netlify: Site settings → Environment variables):
+// Required environment variables (Netlify: Site settings → Environment variables):
 //   AIRTABLE_TOKEN    → your Airtable Personal Access Token
 //   AIRTABLE_BASE_ID  → your Airtable Base ID (starts with "app")
 
@@ -29,14 +29,22 @@ exports.handler = async function (event) {
   }
 
   const params = event.queryStringParameters || {};
-  const path = params.path;   // e.g. "Sessions" or "Sessions/recXXXXXXXX"
-  const qs = params.qs || ''; // e.g. "maxRecords=200&sort[0][field]=..."
+  const table = params.table;   // e.g. "Sessions"
+  const id = params.id;         // optional record id, e.g. "recXXXXXXXXXXXXXX"
+  const qs = params.qs || '';   // e.g. "maxRecords=200&sort[0][field]=..."
 
-  if (!path) {
-    return { statusCode: 400, headers: cors, body: JSON.stringify({ error: { message: 'Missing "path" query parameter' } }) };
+  if (!table) {
+    return { statusCode: 400, headers: cors, body: JSON.stringify({ error: { message: 'Missing "table" query parameter' } }) };
   }
 
-  const url = `https://api.airtable.com/v0/${BASE_ID}/${encodeURIComponent(path)}${qs ? '?' + qs : ''}`;
+  // Encode EACH path segment separately so the "/" between table and record id
+  // stays a real path separator instead of being escaped to %2F (which breaks
+  // every PATCH/GET-by-id request against Airtable).
+  const recordPath = id
+    ? encodeURIComponent(table) + '/' + encodeURIComponent(id)
+    : encodeURIComponent(table);
+
+  const url = `https://api.airtable.com/v0/${BASE_ID}/${recordPath}${qs ? '?' + qs : ''}`;
 
   const opts = {
     method: event.httpMethod,
@@ -49,7 +57,7 @@ exports.handler = async function (event) {
 
   try {
     const r = await fetch(url, opts);
-    const data = await r.text(); // pass through raw JSON text as-is
+    const data = await r.text();
     return { statusCode: r.status, headers: { ...cors, 'Content-Type': 'application/json' }, body: data };
   } catch (e) {
     return { statusCode: 502, headers: cors, body: JSON.stringify({ error: { message: 'Upstream Airtable request failed: ' + e.message } }) };
