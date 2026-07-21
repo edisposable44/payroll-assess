@@ -459,17 +459,14 @@ select.input{cursor:pointer}
         <button class="btn btn-primary btn-sm" onclick="saveDefaults()">Enregistrer les paramètres</button>
       </div>
       <div class="card">
-        <div class="h3" style="margin-bottom:4px">Airtable (optionnel)</div>
-        <p class="body" style="margin-bottom:16px">Si configuré, les sessions et résultats sont synchronisés avec Airtable et accessibles depuis n'importe quel appareil. Sans configuration, les données sont stockées localement.</p>
-        <div class="input-group"><label class="input-label">Personal Access Token</label><input type="password" id="cfg-token" class="input" placeholder="pat…"></div>
-        <div class="input-group"><label class="input-label">Base ID</label><input type="text" id="cfg-base" class="input" placeholder="app…"></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-teal btn-sm" onclick="saveAirtable()">Enregistrer</button>
-          <button class="btn btn-ghost btn-sm" onclick="testAirtable()">Tester la connexion</button>
+        <div class="h3" style="margin-bottom:4px">Connexion Airtable</div>
+        <p class="body" style="margin-bottom:14px">Le token est configuré côté serveur (variables d'environnement Netlify) — jamais exposé dans le navigateur, ni recruteur ni candidat.</p>
+        <div id="at-status-box" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:12px;font-size:13px">
+          <span id="at-status-text" style="color:var(--t3)">Statut non vérifié</span>
         </div>
-        <div id="at-result" style="margin-top:10px;font-size:13px"></div>
-        <div class="card-inset" style="margin-top:14px">
-          <p class="small" style="color:var(--t2)">Tables Airtable requises : <strong>Sessions</strong> (PIN, Nom, Prenom, Profil, Duree_min, Statut, Ouvert_le) et <strong>Resultats</strong> (Session_PIN, Score, Niveau, Duree_sec, Autonomie, Proactivite, Pression, Responsabilite, Commentaire, Snapshot, Completed_at).</p>
+        <button class="btn btn-ghost btn-sm" onclick="testAirtable()">🔌 Tester la connexion</button>
+        <div class="input-hint" style="margin-top:10px">
+          Configuration serveur (une seule fois) : dans Netlify → Site settings → Environment variables, ajoutez <code>AIRTABLE_TOKEN</code> et <code>AIRTABLE_BASE_ID</code>, puis redéployez. Le fichier <code>netlify/functions/airtable.js</code> fourni gère le relais de façon sécurisée.
         </div>
       </div>
       <div class="card">
@@ -843,14 +840,15 @@ function toAtSt(s){
 }
 
 async function atReq(table,method='GET',body=null,id='',qs=''){
-  const token=CFG.get('at_token','');
-  const base=CFG.get('at_base','');
-  if(!token||!base)return null;
-  const url=`https://api.airtable.com/v0/${base}/${encodeURIComponent(table)}${id?'/'+id:''}${qs}`;
-  const opts={method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'}};
+  // Calls the Netlify Functions proxy — the Airtable token lives ONLY server-side
+  // (Netlify env vars AIRTABLE_TOKEN / AIRTABLE_BASE_ID). Works identically for
+  // recruiter AND applicant browsers since both hit the same serverless endpoint.
+  const path=id?(table+'/'+id):table;
+  const cleanQs=qs.startsWith('?')?qs.slice(1):qs;
+  const url='/.netlify/functions/airtable?path='+encodeURIComponent(path)+(cleanQs?'&qs='+encodeURIComponent(cleanQs):'');
+  const opts={method,headers:{'Content-Type':'application/json'}};
   if(body){
-    // Always add typecast so Single Select values are accepted
-    if(method==='POST'||method==='PATCH') body.typecast=true;
+    if(method==='POST'||method==='PATCH')body.typecast=true;
     opts.body=JSON.stringify(body);
   }
   try{
@@ -859,16 +857,23 @@ async function atReq(table,method='GET',body=null,id='',qs=''){
     const d=await r.json();
     if(d.error){console.warn('Airtable API error:',d.error.type,d.error.message);return null;}
     return d;
-  }catch(e){console.warn('Airtable fetch error:',e.message);return null;}
+  }catch(e){console.warn('Airtable proxy fetch error:',e.message);return null;}
 }
-async function atGetSessions(){
-  // Fetch sessions and results in parallel
+async function atGetSessions(pinFilter=null){
+  // pinFilter=null      → fetch ALL sessions (initial load, manual refresh, tab switch)
+  // pinFilter=[array]   → fetch ONLY those specific PINs (targeted 12s auto-refresh)
+  //   Filtering by explicit PIN (not by current status) means a session that just
+  //   transitioned ouverte/en_cours → terminée is still returned this cycle.
+  let sessQs='?maxRecords=200&sort[0][field]=Ouvert_le&sort[0][direction]=desc';
+  if(pinFilter&&pinFilter.length){
+    const formula='OR('+pinFilter.map(p=>"{PIN}='"+p.replace(/'/g,"\\'")+"'").join(',')+')';
+    sessQs='?filterByFormula='+encodeURIComponent(formula);
+  }
   const [sessR,resR]=await Promise.all([
-    atReq('Sessions','GET',null,'','?maxRecords=200&sort[0][field]=Ouvert_le&sort[0][direction]=desc'),
+    atReq('Sessions','GET',null,'',sessQs),
     atReq('Resultats','GET',null,'','?maxRecords=200')
   ]);
   if(!sessR?.records)return null;
-  // Build results map by PIN
   const resMap={};
   (resR?.records||[]).forEach(rec=>{
     const pin=rec.fields.Session_PIN;
@@ -900,6 +905,7 @@ async function atGetSessions(){
     };
   });
 }
+
 async function atCreateSession(s){
   const r=await atReq('Sessions','POST',{fields:{
     PIN:s.pin,Nom:s.nom,Prenom:s.prenom,Profil:s.profil,
@@ -944,10 +950,9 @@ function lsSaveResult(r){const arr=lsGetResults();arr.push(r);CFG.set('results',
 
 // ─── SESSION CRUD (with Airtable fallback to localStorage) ────────────────────
 async function loadSessions(){
-  const at=await atGetSessions();
-  if(at){State.sessions=at;return at;}
+  const at=await atGetSessions(); // full fetch (no pinFilter)
+  if(at){State.sessions=at;return State.sessions;}
   const ls=lsGetSessions();
-  // Merge results into sessions
   const res=lsGetResults();
   const resMap={};res.forEach(r=>resMap[r.pin]=r);
   State.sessions=ls.map(s=>{
@@ -957,6 +962,7 @@ async function loadSessions(){
   });
   return State.sessions;
 }
+
 async function saveNewSession(s){
   const atId=await atCreateSession(s);
   if(atId) s._id=atId;  // Store Airtable record ID for subsequent updates
@@ -970,7 +976,7 @@ async function saveNewSession(s){
 async function closeSession(pin){
   const s=State.sessions.find(x=>x.pin===pin);
   if(!s)return;
-  if(s._id&&CFG.get('at_token')){await atUpdateSession(s._id,{Statut:'fermee'});}
+  if(!!s._id){await atUpdateSession(s._id,{Statut:'fermee'});}
   const arr=lsGetSessions();
   const idx=arr.findIndex(x=>x.pin===pin);
   if(idx>=0){arr[idx].status='closed';lsSaveSessions(arr);}
@@ -1021,14 +1027,14 @@ function switchTab(t){
   if(t==='settings')loadSettings();
   if(t==='new'){$('pin-result').style.display='none';$('new-err').style.display='none';$('new-nom').value='';$('new-prenom').value='';$('new-profil').value='';$('new-duree').value=CFG.get('default_duree',7);$('new-nq').value=CFG.get('default_nq',10);}
 }
-function startAutoRefresh(){stopAutoRefresh();State.refreshId=setInterval(loadAndRender,12000);}
+function startAutoRefresh(){stopAutoRefresh();State.refreshId=setInterval(refreshActiveRows,12000);}
 function stopAutoRefresh(){if(State.refreshId){clearInterval(State.refreshId);State.refreshId=null;}}
 window.addEventListener('storage',e=>{
   if((e.key==='pa_sessions'||e.key==='pa_results')&&State.adminAuth&&$('tab-sessions')?.classList.contains('active')){loadAndRender();}
 });
 
 async function loadAndRender(){
-  $('sessions-tbody').innerHTML='<tr><td colspan="8" class="table-empty">Chargement…</td></tr>';
+  $('sessions-tbody').innerHTML='<tr><td colspan="9" class="table-empty">Chargement…</td></tr>';
   await loadSessions();
   renderSessions();
   const lr=$('last-refresh');if(lr)lr.textContent='Mis à jour : '+new Date().toLocaleTimeString('fr-FR');
@@ -1040,9 +1046,46 @@ function resetSessionFilters(){
   flds.forEach(id=>{const el=$(id);if(el){el.value='';}});
   renderSessions();
 }
-function renderSessions(){
+// Builds one <tr> for the sessions table. Reused by full render AND partial patch.
+function sessionRowHtml(s){
+  const sts=statusBadge(s.status);
+  const isTimedOut=s.timedOut||(normSt(s.status)==='done'&&s.dureeReelle&&s.duree&&s.answeredCount<s.totalCount);
+  const score=s.score!=null?`<span style="font-weight:700;color:var(--navy)">${s.score}/20</span>`:'—';
+  const dur=s.dureeReelle?fmt(s.dureeReelle):'—';
+  const date=s.createdAt?new Date(s.createdAt).toLocaleDateString('fr-FR'):'—';
+  const hasDone=normSt(s.status)==='done'||(s.score!=null&&s.snapshot);
+  const actions=(hasDone
+    ?('<button class="btn btn-ghost btn-sm btn-icon" onclick=\'showResult("'+s.pin+'")\' title="Voir résultats">📊</button>'
+      +'<button class="btn btn-ghost btn-sm btn-icon" onclick=\'adminPDF("'+s.pin+'")\' title="Télécharger PDF correction">📥</button>')
+    :'')
+    +(normSt(s.status)==='ouverte'
+      ?'<button class="btn btn-danger btn-sm btn-icon" onclick=\'closeSession("'+s.pin+'")\' title="Fermer session">🔒</button>'
+      :'');
+  let bhCell='<span style="color:var(--t3);font-size:12px">—</span>';
+  if(s.bh&&Object.values(s.bh).some(v=>v!=null)){
+    const bh=s.bh;
+    bhCell=['AUT','PRO','PRE','RES'].map(k=>{
+      const v=bh[k];if(v==null)return`<span style="color:var(--t3);font-size:10px" title="${BH_LABELS[k]}: non évalué">·</span>`;
+      const c=v>=7?'var(--green)':v>=4?'var(--gold)':'var(--red)';
+      return`<span title="${BH_LABELS[k]}: ${v}/10" style="font-size:11px;font-weight:700;color:${c};cursor:default">${k[0]}${k.slice(1,3).toLowerCase()}:${v}</span>`;
+    }).join('<br>');
+  }
+  return `<tr data-pin="${s.pin}">
+      <td><strong>${s.prenom} ${s.nom}</strong></td>
+      <td>${profilBadge(s.profil)}</td>
+      <td><span class="mono" style="font-size:15px;font-weight:700;letter-spacing:.1em;color:var(--navy)">${s.pin}</span><br><span style="font-size:11px;color:var(--t3)">${s.nq||10}Q · ${s.duree}min</span></td>
+      <td>${sts}${isTimedOut?'<br><span class="badge-timeout">⏱ Temps écoulé</span>':''}</td>
+      <td>${score}</td>
+      <td style="line-height:1.6">${bhCell}</td>
+      <td>${dur}</td>
+      <td>${date}</td>
+      <td><div class="actions">${actions}</div></td>
+    </tr>`;
+}
+
+// Returns the currently-filtered session list (applies name/profil/status/date filters)
+function filteredSessions(){
   const all=State.sessions;
-  // Apply filters
   const fname=($('sf-name')?.value||'').toLowerCase().trim();
   const fprofil=$('sf-profil')?.value||'';
   const fstatus=$('sf-status')?.value||'';
@@ -1056,52 +1099,73 @@ function renderSessions(){
     if(fto&&s.createdAt&&s.createdAt.slice(0,10)>fto)return false;
     return true;
   });
+  const isFiltered=!!(fname||fprofil||fstatus||ffrom||fto);
+  return {sessions,all,isFiltered};
+}
+
+// Recomputes the 4 stat cards from the current filtered session list
+function updateStatCards(){
+  const {sessions,all,isFiltered}=filteredSessions();
   const open=sessions.filter(s=>normSt(s.status)==='ouverte').length;
   const active=sessions.filter(s=>normSt(s.status)==='en_cours').length;
   const done=sessions.filter(s=>normSt(s.status)==='done').length;
   const scores=sessions.filter(s=>s.score!=null).map(s=>parseFloat(s.score));
   const avg=scores.length?((scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1)):null;
-  const isFiltered=fname||fprofil||fstatus||ffrom||fto;
   $('stat-total').textContent=sessions.length+(isFiltered?` / ${all.length}`:'');
   $('stat-open').textContent=open+active;
   $('stat-done').textContent=done;
   $('stat-avg').textContent=avg?avg+'/20':'—';
-  if(!sessions.length){$('sessions-tbody').innerHTML='<tr><td colspan="9" class="table-empty">'+(isFiltered?'Aucun résultat pour ces filtres.':"Aucun candidat — créez une session.")+'</td></tr>';return;}
-  $('sessions-tbody').innerHTML=sessions.map(s=>{
-    const sts=statusBadge(s.status);
-    const isTimedOut=s.timedOut||(normSt(s.status)==='done'&&s.dureeReelle&&s.duree&&s.answeredCount<s.totalCount);
-    const score=s.score!=null?`<span style="font-weight:700;color:var(--navy)">${s.score}/20</span>`:'—';
-    const dur=s.dureeReelle?fmt(s.dureeReelle):'—';
-    const date=s.createdAt?new Date(s.createdAt).toLocaleDateString('fr-FR'):'—';
-    const hasDone=normSt(s.status)==='done'||(s.score!=null&&s.snapshot);
-    const actions=`
-      ${hasDone?`<button class="btn btn-ghost btn-sm btn-icon" onclick='showResult("${s.pin}")' title="Voir résultats">📊</button>
-      <button class="btn btn-ghost btn-sm btn-icon" onclick='adminPDF("${s.pin}")' title="Télécharger PDF correction">📥</button>`:''}
-      ${(normSt(s.status)==='ouverte')?`<button class="btn btn-danger btn-sm btn-icon" onclick='closeSession("${s.pin}")' title="Fermer session">🔒</button>`:''}
-    `;
-    // Compact behavioral cell
-    let bhCell='<span style="color:var(--t3);font-size:12px">—</span>';
-    if(s.bh&&Object.values(s.bh).some(v=>v!=null)){
-      const bh=s.bh;
-      bhCell=['AUT','PRO','PRE','RES'].map(k=>{
-        const v=bh[k];if(v==null)return`<span style="color:var(--t3);font-size:10px" title="${BH_LABELS[k]}: non évalué">·</span>`;
-        const c=v>=7?'var(--green)':v>=4?'var(--gold)':'var(--red)';
-        return`<span title="${BH_LABELS[k]}: ${v}/10" style="font-size:11px;font-weight:700;color:${c};cursor:default">${k[0]}${k.slice(1,3).toLowerCase()}:${v}</span>`;
-      }).join('<br>');
-    }
-    return `<tr>
-      <td><strong>${s.prenom} ${s.nom}</strong></td>
-      <td>${profilBadge(s.profil)}</td>
-      <td><span class="mono" style="font-size:15px;font-weight:700;letter-spacing:.1em;color:var(--navy)">${s.pin}</span><br><span style="font-size:11px;color:var(--t3)">${s.nq||10}Q · ${s.duree}min</span></td>
-      <td>${sts}${isTimedOut?'<br><span class="badge-timeout">⏱ Temps écoulé</span>':''}</td>
-      <td>${score}</td>
-      <td style="line-height:1.6">${bhCell}</td>
-      <td>${dur}</td>
-      <td>${date}</td>
-      <td><div class="actions">${actions}</div></td>
-    </tr>`;
-  }).join('');
+  return {sessions,isFiltered};
 }
+
+// FULL rebuild of the sessions table — used on tab switch, manual refresh, filter change
+function renderSessions(){
+  const {sessions,isFiltered}=updateStatCards();
+  if(!sessions.length){
+    $('sessions-tbody').innerHTML='<tr><td colspan="9" class="table-empty">'+(isFiltered?'Aucun résultat pour ces filtres.':"Aucun candidat — créez une session.")+'</td></tr>';
+    return;
+  }
+  $('sessions-tbody').innerHTML=sessions.map(sessionRowHtml).join('');
+}
+
+// PARTIAL refresh (auto-refresh every 12s) — only touches rows whose Airtable
+// status is (or was) ouverte/en_cours. Terminée/Fermée rows are left untouched
+// in the DOM: no flicker, no unnecessary work.
+async function refreshActiveRows(){
+  // Sessions we're currently tracking as "still moving" — includes any session
+  // that COULD change (ouverte/en_cours). We re-fetch these specific PINs so that
+  // a candidate finishing their quiz (→ terminée) IS still picked up this cycle.
+  const trackedPins=State.sessions
+    .filter(s=>normSt(s.status)==='ouverte'||normSt(s.status)==='en_cours')
+    .map(s=>s.pin);
+  if(!trackedPins.length){
+    const lr=$('last-refresh');if(lr)lr.textContent='Mis à jour : '+new Date().toLocaleTimeString('fr-FR');
+    return; // nothing active to poll — avoid a pointless network call
+  }
+  const updated=await atGetSessions(trackedPins);
+  if(!updated){return;} // proxy/network hiccup — silently skip this cycle
+  // Merge updated records into State.sessions (by PIN)
+  updated.forEach(u=>{
+    const idx=State.sessions.findIndex(s=>s.pin===u.pin);
+    if(idx>=0)State.sessions[idx]={...State.sessions[idx],...u};
+    else State.sessions.unshift(u);
+  });
+  // Recompute stat cards (cheap) then patch ONLY the affected DOM rows
+  const {sessions:visible}=updateStatCards();
+  const visiblePins=new Set(visible.map(s=>s.pin));
+  updated.forEach(u=>{
+    const tr=document.querySelector('tr[data-pin="'+u.pin+'"]');
+    if(!visiblePins.has(u.pin)){tr?.remove();return;} // filtered out now
+    const html=sessionRowHtml(State.sessions.find(s=>s.pin===u.pin));
+    if(tr){tr.outerHTML=html;}
+    else{
+      // Row wasn't rendered before (e.g. table was showing "Aucun candidat") — do a full render once
+      renderSessions();
+    }
+  });
+  const lr=$('last-refresh');if(lr)lr.textContent='Mis à jour : '+new Date().toLocaleTimeString('fr-FR');
+}
+
 
 function statusBadge(st){
   const ns=normSt(st);
@@ -1238,18 +1302,17 @@ function saveComment(pin){
 function loadSettings(){
   $('cfg-duree').value=CFG.get('default_duree',7);
   $('cfg-nq').value=CFG.get('default_nq',10);
-  $('cfg-token').value=CFG.get('at_token','')||'';
-  $('cfg-base').value=CFG.get('at_base','')||'';
 }
 function saveDefaults(){CFG.set('default_duree',parseInt($('cfg-duree').value)||7);CFG.set('default_nq',parseInt($('cfg-nq').value)||10);alert('Paramètres enregistrés.');}
-function saveAirtable(){
-  CFG.set('at_token',$('cfg-token').value.trim());
-  CFG.set('at_base',$('cfg-base').value.trim());
-  alert('Configuration Airtable enregistrée.');
-}
+
 async function testAirtable(){
+  const box=$('at-status-text');
+  if(box){box.textContent='Vérification…';box.style.color='var(--t3)';}
   const r=await atReq('Sessions','GET',null,'','?maxRecords=1');
-  $('at-result').innerHTML=r?'<span style="color:var(--green)">✅ Connexion réussie</span>':'<span style="color:var(--red)">❌ Erreur — vérifiez le token et le Base ID</span>';
+  if(box){
+    if(r){box.innerHTML='✅ Connexion Airtable opérationnelle (via proxy Netlify)';box.style.color='var(--green)';}
+    else{box.innerHTML='❌ Échec — vérifiez AIRTABLE_TOKEN / AIRTABLE_BASE_ID dans Netlify (Environment variables) puis redéployez';box.style.color='var(--red)';}
+  }
 }
 
 // ─── EXPORT CSV ───────────────────────────────────────────────────────────────
@@ -1433,7 +1496,7 @@ function startQuiz(){
   // Update session status
   const arr=lsGetSessions();const idx=arr.findIndex(x=>x.pin===session.pin);
   if(idx>=0){arr[idx].status='en_cours';arr[idx]._id=session._id||arr[idx]._id;lsSaveSessions(arr);}
-  if(session._id&&CFG.get('at_token'))atUpdateSession(session._id,{Statut:'en_cours'});
+  if(!!session._id)atUpdateSession(session._id,{Statut:'en_cours'});
   setCandStep('quiz');
   renderQuestion();
   startTimer();
@@ -1572,7 +1635,7 @@ async function finishQuiz(timedOut=false){
   if(idx>=0){Object.assign(arr[idx],{status:'done',score,niveauLabel:lv.label,bh,dureeReelle:elapsed,timedOut:timedOutFlag,answeredCount:State.cand.ans.length,totalCount:State.cand.qs.length,snapshot:JSON.stringify(snapshot),_id:session._id||arr[idx]._id});lsSaveSessions(arr);}
   lsSaveResult(result);  // Always save result to localStorage too
   // Save to Airtable
-  if(session._id&&CFG.get('at_token')){
+  if(!!session._id){
     await atUpdateSession(session._id,{Statut:'terminee'});
     await atSaveResult(result);
   }  // end Airtable sync
@@ -1935,8 +1998,8 @@ function buildQeBwList(bw,n){
   $('qe-bw-list').innerHTML=Array.from({length:n},(_,i)=>`
     <div style="display:flex;align-items:center;gap:10px;font-size:13px">
       <span style="color:var(--t2);min-width:60px">Option ${i+1}</span>
-      <input type="range" min="0" max="3" value="${bw[i]||1}" id="qe-bw-${i}" style="flex:1;accent-color:var(--teal)" oninput="$('qe-bw-val-${i}').textContent=this.value">
-      <span id="qe-bw-val-${i}" style="font-weight:600;min-width:16px">${bw[i]||1}</span>
+      <input type="range" min="0" max="3" value="${bw[i]||1}" id="qe-bw-${i}" style="flex:1;accent-color:var(--teal)" oninput="this.previousElementSibling.previousElementSibling.nextElementSibling.textContent=this.value">
+      <span class="bw-val" style="font-weight:600;min-width:16px">${bw[i]||1}</span>
     </div>`).join('');
 }
 function addQeOption(){
@@ -1951,8 +2014,8 @@ function addQeOption(){
   $('qe-bw-list').insertAdjacentHTML('beforeend',`
     <div style="display:flex;align-items:center;gap:10px;font-size:13px">
       <span style="color:var(--t2);min-width:60px">Option ${n+1}</span>
-      <input type="range" min="0" max="3" value="1" id="qe-bw-${n}" style="flex:1;accent-color:var(--teal)" oninput="$('qe-bw-val-${n}').textContent=this.value">
-      <span id="qe-bw-val-${n}" style="font-weight:600;min-width:16px">1</span>
+      <input type="range" min="0" max="3" value="1" id="qe-bw-${n}" style="flex:1;accent-color:var(--teal)" oninput="this.previousElementSibling.previousElementSibling.nextElementSibling.textContent=this.value">
+      <span class="bw-val" style="font-weight:600;min-width:16px">1</span>
     </div>`);
 }
 function removeQeOption(idx){
@@ -1986,10 +2049,10 @@ function saveQEditor(){
   if(tp!=='o'){
     const n=$('qe-opts-list').children.length;
     for(let i=0;i<n;i++){
-      const v=$(`qe-opt-${i}`)?.value.trim()||'';
+      const v=$('qe-opt-'+i)?.value.trim()||'';
       opts.push(v);
-      if($(`qe-cor-${i}`)?.checked)cor.push(i);
-      bw.push(parseInt($(`qe-bw-${i}`)?.value||1));
+      if($('qe-cor-'+i)?.checked)cor.push(i);
+      bw.push(parseInt($('qe-bw-'+i)?.value||1));
     }
     if(tp==='s'&&cor.length!==1){$('q-edit-err').textContent='Sélectionnez exactement 1 réponse correcte pour un QCM simple.';$('q-edit-err').style.display='block';return;}
     if(tp==='m'&&cor.length<1){$('q-edit-err').textContent='Sélectionnez au moins 1 réponse correcte pour un QCM multiple.';$('q-edit-err').style.display='block';return;}
