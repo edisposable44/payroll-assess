@@ -1300,37 +1300,51 @@ function pickQuestions(profil,nqTotal=10){
   const stdByLv  =[1,2,3,4].map(lv=>shuf(stdPool.filter(q=>q.lv===lv)));
 
   // ── Targets ─────────────────────────────────────────────────────────────────
-  // ≥20 questions: 1/5 behavioral with ALL 4 axes covered
-  // <20 questions: 20% behavioral (TL 30%), 2-3 questions, axes as available
+  // bigSession = ≥20 questions → enhanced behavioral rules apply
   const bigSession=nqTotal>=20;
-  const bhPct=isTL?0.3:0.2;
-  const bhRaw=Math.round(nqTotal*bhPct);
-  // For big sessions: exactly 1/5, min 4 (to cover all axes)
-  const bhTarget=bigSession
-    ?Math.max(4,Math.round(nqTotal*0.2))           // ≥20q: 20% and ≥4 (one per axis)
-    :Math.max(1,Math.min(isTL?4:3,bhRaw));          // <20q: existing rule
+
+  // ── Behavioral target ────────────────────────────────────────────────────────
+  // TL ≥20q : 35% behavioral (leadership assessment depth) + ALL 4 axes + 1-2 per axis
+  // TL <20q : 30% behavioral (as before), axes best-effort
+  // AS/SE ≥20q: 20% behavioral + ALL 4 axes guaranteed
+  // AS/SE <20q: 20% behavioral, axes best-effort (pool may be too small for 4)
+  let bhTarget;
+  if(bigSession){
+    bhTarget=isTL
+      ?Math.max(4,Math.round(nqTotal*0.35))   // TL ≥20q: 35%, min 4 (all axes)
+      :Math.max(4,Math.round(nqTotal*0.20));   // AS/SE ≥20q: 20%, min 4 (all axes)
+  } else {
+    bhTarget=Math.max(1,Math.min(isTL?4:3,Math.round(nqTotal*(isTL?0.3:0.2))));
+  }
+
   // Calcul total: 30% for Associate/Senior (min 3), 0 for TL
   const calcTarget=isTL?0:Math.max(3,Math.round(nqTotal*0.3));
-  // Within calcul: at least 1 open, max 2 (3+ for big sessions)
+  // Within calcul: at least 1 open, proportional for big sessions
   const openTarget=isTL?0:Math.max(1,Math.min(bigSession?3:2,Math.round(nqTotal*0.1)));
 
   const selected=[];
 
   // ── 1. Behavioral ────────────────────────────────────────────────────────────
-  // For ≥20q: MUST cover all 4 axes (AUT/PRO/PRE/RES) at minimum
+  // ALL 4 axes (AUT/PRO/PRE/RES) must be represented in big sessions
   const ALL_AXES=['AUT','PRO','PRE','RES'];
   const axesSeen=new Set();
-  // Pass 1: one question per axis (priority order)
+  // Pass 1a: one question per axis — guarantees coverage of all 4 axes
   for(const ax of ALL_AXES){
     const cands=bhPool.filter(q=>q.bh===ax);
     if(cands.length>0&&!axesSeen.has(ax)){
       selected.push(cands[0]);
       axesSeen.add(ax);
     }
-    if(bigSession&&axesSeen.size===4)break; // covered all axes
-    if(!bigSession&&axesSeen.size>=bhTarget)break;
   }
-  // Pass 2: fill up to bhTarget with any remaining behavioral (different axes first)
+  // Pass 1b (TL big session only): add a 2nd question per axis for depth (round-robin)
+  if(bigSession&&isTL){
+    for(const ax of ALL_AXES){
+      if(selected.filter(x=>x.bh).length>=bhTarget)break;
+      const cands=bhPool.filter(q=>q.bh===ax&&!selected.includes(q));
+      if(cands.length>0)selected.push(cands[0]);
+    }
+  }
+  // Pass 2: fill remaining slots to bhTarget with any behavioral (axes already covered)
   for(const q of bhPool){
     if(selected.filter(x=>x.bh).length>=bhTarget)break;
     if(!selected.includes(q))selected.push(q);
