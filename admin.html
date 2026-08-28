@@ -275,6 +275,8 @@ select.input{cursor:pointer}
 
 .mono{font-family:'SF Mono',Consolas,monospace}
 .badge-navy{background:var(--navy);color:#fff}
+.pwd-toggle-btn{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;padding:4px 6px;line-height:1;border-radius:6px;opacity:.65}
+.pwd-toggle-btn:hover{opacity:1;background:var(--surface2)}
 
 </style>
 </head>
@@ -294,7 +296,7 @@ select.input{cursor:pointer}
     <div class="input-group"><label class="input-label">Email</label>
     <input type="email" id="login-email" class="input" placeholder="vous@iipay.com" autocomplete="username"></div>
     <div class="input-group"><label class="input-label">Mot de passe</label>
-    <input type="password" id="login-pwd" class="input" placeholder="••••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginAdmin()"></div>
+    <div style="position:relative"><input type="password" id="login-pwd" class="input" placeholder="••••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginAdmin()" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('login-pwd',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
     <div id="login-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
     <button class="btn btn-primary btn-full" id="login-submit-btn" onclick="loginAdmin()">Accéder</button>
     <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="showForgotPassword()">Mot de passe oublié ?</button>
@@ -315,8 +317,8 @@ select.input{cursor:pointer}
     <p class="body" style="margin-bottom:20px">Saisissez le code reçu et votre nouveau mot de passe (au moins 10 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial).</p>
     <div class="input-group"><label class="input-label">Code à 6 chiffres</label>
     <input type="text" id="reset-otp-input" class="input" maxlength="6" inputmode="numeric" placeholder="000000" style="letter-spacing:.3em;text-align:center;font-size:20px;font-weight:700"></div>
-    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="reset-new-pwd1" class="input" placeholder="••••••••••"></div>
-    <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="reset-new-pwd2" class="input" placeholder="••••••••••"></div>
+    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div style="position:relative"><input type="password" id="reset-new-pwd1" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('reset-new-pwd1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Confirmer</label><div style="position:relative"><input type="password" id="reset-new-pwd2" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('reset-new-pwd2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
     <div id="reset-pwd-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
     <button class="btn btn-teal btn-full" id="reset-pwd-submit-btn" onclick="submitPasswordReset()">Valider et me connecter</button>
     <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="resetLoginForm()">← Retour</button>
@@ -335,9 +337,9 @@ select.input{cursor:pointer}
   <div id="login-step-changepwd" style="display:none">
     <p class="h3" style="margin-bottom:4px">Choisissez votre mot de passe</p>
     <p class="body" style="margin-bottom:20px">Première connexion (ou réinitialisation) : définissez votre mot de passe personnel. Au moins 10 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial.</p>
-    <div class="input-group"><label class="input-label">Mot de passe temporaire reçu</label><input type="password" id="chpwd-current" class="input" placeholder="••••••••••"></div>
-    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="chpwd-new1" class="input" placeholder="••••••••••"></div>
-    <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="chpwd-new2" class="input" placeholder="••••••••••"></div>
+    <div class="input-group"><label class="input-label">Mot de passe temporaire reçu</label><div style="position:relative"><input type="password" id="chpwd-current" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-current',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div style="position:relative"><input type="password" id="chpwd-new1" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-new1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Confirmer</label><div style="position:relative"><input type="password" id="chpwd-new2" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-new2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
     <div id="chpwd-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
     <button class="btn btn-teal btn-full" id="chpwd-submit-btn" onclick="submitForcedPasswordChange()">Mettre à jour et continuer</button>
   </div>
@@ -501,16 +503,6 @@ select.input{cursor:pointer}
         <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 Télécharger CSV</button>
       </div>
 
-      <div class="card">
-        <div class="h3" style="margin-bottom:4px">Mon mot de passe — <span id="settings-pwd-email" style="font-weight:400;color:var(--t3)"></span></div>
-        <p class="body" style="margin-bottom:16px">Ce changement s'applique uniquement au compte actuellement connecté ci-dessus, pas aux autres administrateurs.</p>
-        <div class="input-group"><label class="input-label">Mot de passe actuel</label><input type="password" id="settings-current-pwd" class="input" placeholder="••••••••••"></div>
-        <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="settings-new-pwd1" class="input" placeholder="••••••••••"></div>
-        <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="settings-new-pwd2" class="input" placeholder="••••••••••"></div>
-        <div id="settings-pwd-result" style="display:none;margin-bottom:10px"></div>
-        <button class="btn btn-teal btn-sm" onclick="changeOwnPassword()">Mettre à jour</button>
-      </div>
-
       <div id="settings-airtable-card" class="card" style="display:none">
         <div class="h3" style="margin-bottom:4px">Connexion Airtable</div>
         <p class="body" style="margin-bottom:14px">Réservé au master admin. Le token est configuré côté serveur (variables d'environnement Netlify) — jamais exposé dans le navigateur, ni recruteur ni candidat.</p>
@@ -521,6 +513,16 @@ select.input{cursor:pointer}
         <div class="input-hint" style="margin-top:10px">
           Configuration serveur (une seule fois) : dans Netlify → Site settings → Environment variables, ajoutez <code>AIRTABLE_TOKEN</code> et <code>AIRTABLE_BASE_ID</code>, puis redéployez. Le fichier <code>netlify/functions/airtable.js</code> fourni gère le relais de façon sécurisée.
         </div>
+      </div>
+
+      <div class="card">
+        <div class="h3" style="margin-bottom:4px">Mon mot de passe — <span id="settings-pwd-email" style="font-weight:400;color:var(--t3)"></span></div>
+        <p class="body" style="margin-bottom:16px">Ce changement s'applique uniquement au compte actuellement connecté ci-dessus, pas aux autres administrateurs.</p>
+        <div class="input-group"><label class="input-label">Mot de passe actuel</label><div style="position:relative"><input type="password" id="settings-current-pwd" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-current-pwd',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+        <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div style="position:relative"><input type="password" id="settings-new-pwd1" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-new-pwd1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+        <div class="input-group"><label class="input-label">Confirmer</label><div style="position:relative"><input type="password" id="settings-new-pwd2" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-new-pwd2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+        <div id="settings-pwd-result" style="display:none;margin-bottom:10px"></div>
+        <button class="btn btn-teal btn-sm" onclick="changeOwnPassword()">Mettre à jour</button>
       </div>
     </div>
   </div>
@@ -769,6 +771,15 @@ function fmt(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`
 function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function genPIN(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let p='';for(let i=0;i<6;i++)p+=c[Math.floor(Math.random()*c.length)];return p;}
 function profileLabel(p){return PROFILES[p]?.label||p;}
+
+// Show/hide toggle for any password input — applies to every field with the
+// eye-icon button (login, forced change, forgot-password reset, settings).
+function togglePwdVisibility(inputId,btn){
+  const inp=$(inputId);
+  if(!inp)return;
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
+}
 
 // ─── ADMIN AUTH (server-verified — see /.netlify/functions/admin-*) ───────────
 
@@ -1601,6 +1612,13 @@ function resetQuestionsToDefault(){
   renderQAdmin();
   alert('Pool de questions réinitialisé.');
 }
+
+// State for the question-bank editor UI — lost during an earlier file split,
+// causing every renderQAdmin() call to throw ReferenceError and leave the
+// table stuck on "Chargement…" despite the count label updating correctly.
+let QA_PAGE=0;
+let QA_EDITING_ID=null;
+const QA_PER_PAGE=25;
 
 function renderQAdmin(){
   const pool=getQuestionsPool();
