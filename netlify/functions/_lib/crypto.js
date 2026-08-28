@@ -142,9 +142,19 @@ function generateTempPassword() {
   return arr.join('');
 }
 
+/**
+ * Random, unguessable ntfy.sh topic name for OTP delivery. Long and random
+ * on purpose: a public ntfy.sh topic is effectively "public if guessed", so
+ * this doubles as the shared secret between the server and that admin's
+ * device (nobody chooses their own topic — see _lib/ntfy.js for why).
+ */
+function generateNtfyTopic() {
+  return 'pa-' + crypto.randomBytes(16).toString('hex'); // pa-<32 hex chars>
+}
+
 module.exports = {
   hashPassword, verifyPassword,
   signToken, verifyToken,
   generateOtp, hashOtp, verifyOtp,
-  generateTempPassword,
+  generateTempPassword, generateNtfyTopic,
 };
