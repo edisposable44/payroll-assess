@@ -19,11 +19,11 @@ exports.handler = async function (event) {
   if (pf) return pf;
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
 
-  const session = requireSession(event);
+  const session = await requireSession(event);
   if (!session) return json(401, { error: 'Session invalide ou expirée.' });
   if (session.role !== 'master') return json(403, { error: 'Réservé au master admin.' });
 
-  const { email } = parseBody(event);
+  const { email, canManageQuestions } = parseBody(event);
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return json(400, { error: 'Adresse email invalide.' });
   }
@@ -51,12 +51,13 @@ exports.handler = async function (event) {
         NtfyTopic: ntfyTopic,
         MustChangePassword: 'Oui',
         Actif: 'Oui',
+        CanManageQuestions: canManageQuestions ? 'Oui' : 'Non',
         CreatedBy: session.email,
         CreatedAt: new Date().toISOString(),
       },
     });
 
-    return json(200, { ok: true, email: emailNorm, tempPassword, ntfyTopic });
+    return json(200, { ok: true, email: emailNorm, tempPassword, ntfyTopic, canManageQuestions: !!canManageQuestions });
   } catch (e) {
     return json(500, { error: 'Erreur serveur : ' + e.message });
   }

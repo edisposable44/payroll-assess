@@ -36,7 +36,7 @@ exports.handler = async function (event) {
   if (!ok) {
     const remainingTtl = Math.max(1, Math.floor((payload.exp - Date.now()) / 1000));
     const newTempToken = signToken(
-      { typ: 'otp_pending', email: payload.email, role: payload.role, mustChange: payload.mustChange, otpHash: payload.otpHash, attempts: payload.attempts + 1 },
+      { typ: 'otp_pending', email: payload.email, role: payload.role, mustChange: payload.mustChange, canManageQuestions: payload.canManageQuestions, otpHash: payload.otpHash, attempts: payload.attempts + 1 },
       secret,
       remainingTtl
     );
@@ -48,9 +48,9 @@ exports.handler = async function (event) {
   }
 
   const token = signToken(
-    { typ: 'session', email: payload.email, role: payload.role, mustChange: payload.mustChange },
+    { typ: 'session', email: payload.email, role: payload.role, mustChange: payload.mustChange, canManageQuestions: payload.canManageQuestions },
     secret,
     SESSION_TTL_SECONDS
   );
-  return json(200, { token, role: payload.role, mustChangePassword: payload.mustChange });
+  return json(200, { token, role: payload.role, mustChangePassword: payload.mustChange, canManageQuestions: payload.canManageQuestions });
 };

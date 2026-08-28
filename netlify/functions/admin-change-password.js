@@ -23,7 +23,7 @@ exports.handler = async function (event) {
   if (pf) return pf;
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
 
-  const session = requireSession(event);
+  const session = await requireSession(event);
   if (!session) return json(401, { error: 'Session invalide ou expirée. Reconnectez-vous.' });
 
   const { currentPassword, newPassword } = parseBody(event);
@@ -44,10 +44,11 @@ exports.handler = async function (event) {
     const newHash = hashPassword(newPassword);
     await airtableRequest('Admins', 'PATCH', { fields: { PasswordHash: newHash, MustChangePassword: 'Non' } }, rec.id);
 
+    const canManageQuestions = session.role === 'master' || rec.fields.CanManageQuestions === 'Oui';
     const secret = process.env.ADMIN_TOKEN_SECRET;
-    const token = signToken({ typ: 'session', email: session.email, role: session.role, mustChange: false }, secret, 4 * 3600);
+    const token = signToken({ typ: 'session', email: session.email, role: session.role, mustChange: false, canManageQuestions }, secret, 4 * 3600);
 
-    return json(200, { ok: true, token });
+    return json(200, { ok: true, token, canManageQuestions });
   } catch (e) {
     return json(500, { error: 'Erreur serveur : ' + e.message });
   }

@@ -11,7 +11,7 @@ exports.handler = async function (event) {
   if (pf) return pf;
   if (event.httpMethod !== 'GET') return json(405, { error: 'Method not allowed' });
 
-  const session = requireSession(event);
+  const session = await requireSession(event);
   if (!session) return json(401, { error: 'Session invalide ou expirée.' });
   if (session.role !== 'master') return json(403, { error: 'Réservé au master admin.' });
 
@@ -26,6 +26,7 @@ exports.handler = async function (event) {
         createdBy: r.fields.CreatedBy || '',
         createdAt: r.fields.CreatedAt || '',
         hasNtfyTopic: !!r.fields.NtfyTopic,
+        canManageQuestions: r.fields.Role === 'Master' || r.fields.CanManageQuestions === 'Oui',
       }))
       .sort((a, b) => (a.role === b.role ? a.email.localeCompare(b.email) : a.role === 'Master' ? -1 : 1));
     return json(200, { admins });
