@@ -297,6 +297,29 @@ select.input{cursor:pointer}
     <input type="password" id="login-pwd" class="input" placeholder="••••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginAdmin()"></div>
     <div id="login-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
     <button class="btn btn-primary btn-full" id="login-submit-btn" onclick="loginAdmin()">Accéder</button>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="showForgotPassword()">Mot de passe oublié ?</button>
+  </div>
+
+  <div id="login-step-forgot" style="display:none">
+    <p class="h3" style="margin-bottom:4px">Mot de passe oublié</p>
+    <p class="body" style="margin-bottom:20px">Un code de vérification sera envoyé sur votre appareil (ntfy) si le compte existe. Vous pourrez ensuite choisir un nouveau mot de passe.</p>
+    <div class="input-group"><label class="input-label">Email</label>
+    <input type="email" id="forgot-email" class="input" placeholder="vous@iipay.com" onkeydown="if(event.key==='Enter')requestPasswordReset()"></div>
+    <div id="forgot-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
+    <button class="btn btn-teal btn-full" id="forgot-submit-btn" onclick="requestPasswordReset()">Envoyer le code</button>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="resetLoginForm()">← Retour</button>
+  </div>
+
+  <div id="login-step-resetpwd" style="display:none">
+    <p class="h3" style="margin-bottom:4px">Nouveau mot de passe</p>
+    <p class="body" style="margin-bottom:20px">Saisissez le code reçu et votre nouveau mot de passe (au moins 10 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial).</p>
+    <div class="input-group"><label class="input-label">Code à 6 chiffres</label>
+    <input type="text" id="reset-otp-input" class="input" maxlength="6" inputmode="numeric" placeholder="000000" style="letter-spacing:.3em;text-align:center;font-size:20px;font-weight:700"></div>
+    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="reset-new-pwd1" class="input" placeholder="••••••••••"></div>
+    <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="reset-new-pwd2" class="input" placeholder="••••••••••"></div>
+    <div id="reset-pwd-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
+    <button class="btn btn-teal btn-full" id="reset-pwd-submit-btn" onclick="submitPasswordReset()">Valider et me connecter</button>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="resetLoginForm()">← Retour</button>
   </div>
 
   <div id="login-step-otp" style="display:none">
@@ -796,7 +819,67 @@ function resetLoginForm(){
   $('login-step-creds').style.display='block';
   $('login-step-otp').style.display='none';
   $('login-step-changepwd').style.display='none';
+  $('login-step-forgot').style.display='none';
+  $('login-step-resetpwd').style.display='none';
   $('otp-input').value='';$('otp-err').style.display='none';
+  $('forgot-email').value='';$('forgot-err').style.display='none';
+  $('reset-otp-input').value='';$('reset-new-pwd1').value='';$('reset-new-pwd2').value='';$('reset-pwd-err').style.display='none';
+  PendingResetToken=null;
+}
+
+function showForgotPassword(){
+  $('login-step-creds').style.display='none';
+  $('login-step-forgot').style.display='block';
+  $('forgot-err').style.display='none';
+  $('forgot-email').focus();
+}
+
+let PendingResetToken=null;
+
+async function requestPasswordReset(){
+  const email=$('forgot-email').value.trim();
+  const err=$('forgot-err');err.style.display='none';
+  if(!email){err.textContent='Email requis.';err.style.display='block';return;}
+  const btn=$('forgot-submit-btn');btn.disabled=true;btn.textContent='Envoi…';
+  try{
+    const r=await fetch('/.netlify/functions/admin-forgot-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})});
+    const d=await r.json();
+    // Response is intentionally generic whether or not the account exists —
+    // always proceed to the code-entry screen.
+    PendingResetToken=d.resetToken||null;
+    $('login-step-forgot').style.display='none';
+    $('login-step-resetpwd').style.display='block';
+    $('reset-otp-input').focus();
+  }catch(e){
+    err.textContent='Erreur réseau. Réessayez.';err.style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Envoyer le code';
+  }
+}
+
+async function submitPasswordReset(){
+  const code=$('reset-otp-input').value.trim();
+  const p1=$('reset-new-pwd1').value;
+  const p2=$('reset-new-pwd2').value;
+  const err=$('reset-pwd-err');err.style.display='none';
+  if(!PendingResetToken){err.textContent='Session de réinitialisation expirée. Recommencez.';err.style.display='block';return;}
+  if(code.length!==6){err.textContent='Le code doit contenir 6 chiffres.';err.style.display='block';return;}
+  if(p1!==p2){err.textContent='Les mots de passe ne correspondent pas.';err.style.display='block';return;}
+  const btn=$('reset-pwd-submit-btn');btn.disabled=true;btn.textContent='Validation…';
+  try{
+    const r=await fetch('/.netlify/functions/admin-reset-own-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({resetToken:PendingResetToken,code,newPassword:p1})});
+    const d=await r.json();
+    if(!r.ok){
+      err.textContent=d.error||'Erreur.';err.style.display='block';
+      if(d.resetToken)PendingResetToken=d.resetToken; else PendingResetToken=null;
+      return;
+    }
+    onLoginSuccess(d.token,d.role,false,$('forgot-email').value.trim());
+  }catch(e){
+    err.textContent='Erreur réseau. Réessayez.';err.style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Valider et me connecter';
+  }
 }
 
 async function loginAdmin(){
@@ -900,15 +983,23 @@ async function loadAdminsList(){
     const d=await r.json();
     if(!r.ok||!d.admins){$('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Erreur de chargement.</td></tr>';return;}
     if(!d.admins.length){$('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Aucun administrateur.</td></tr>';return;}
-    $('admins-tbody').innerHTML=d.admins.map(a=>`
-      <tr>
+    $('admins-tbody').innerHTML=d.admins.map(a=>{
+      const isMaster=a.role==='Master';
+      const actions=isMaster?'':`
+        <button class="btn btn-ghost btn-sm" onclick='resetAdminPassword("${a.email}")' title="Génère un nouveau mot de passe + topic ntfy">↺ Réinitialiser</button>
+        ${a.actif
+          ?`<button class="btn btn-ghost btn-sm" onclick='setAdminActive("${a.email}",false)' title="Suspendre jusqu'à nouvel ordre">⏸ Suspendre</button>`
+          :`<button class="btn btn-teal btn-sm" onclick='setAdminActive("${a.email}",true)' title="Réactiver">▶ Réactiver</button>`}
+        <button class="btn btn-danger btn-sm" onclick='deleteAdmin("${a.email}")' title="Supprimer définitivement">🗑 Supprimer</button>`;
+      return `<tr>
         <td><strong>${a.email}</strong></td>
-        <td><span class="badge ${a.role==='Master'?'badge-navy':'badge-teal'}">${a.role==='Master'?'Master':'Délégué'}</span></td>
-        <td>${a.actif?'<span class="st-open"><span class="status-dot"></span>Actif</span>':'<span class="st-closed"><span class="status-dot"></span>Inactif</span>'}</td>
+        <td><span class="badge ${isMaster?'badge-navy':'badge-teal'}">${isMaster?'Master':'Délégué'}</span></td>
+        <td>${a.actif?'<span class="st-open"><span class="status-dot"></span>Actif</span>':'<span class="st-closed"><span class="status-dot"></span>Suspendu</span>'}</td>
         <td>${a.mustChangePassword?'⚠️ En attente':'✅ Défini'}</td>
         <td style="font-size:12px;color:var(--t3)">${a.hasNtfyTopic?'✅':'❌'} ntfy</td>
-        <td>${a.role!=='Master'?`<button class="btn btn-ghost btn-sm" onclick='resetAdminPassword("${a.email}")'>↺ Réinitialiser</button>`:''}</td>
-      </tr>`).join('');
+        <td><div class="actions" style="flex-wrap:wrap;gap:4px">${actions}</div></td>
+      </tr>`;
+    }).join('');
   }catch(e){
     $('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Erreur réseau.</td></tr>';
   }
@@ -927,7 +1018,7 @@ async function createDelegatedAdmin(){
     $('new-admin-result').innerHTML=`✅ Compte créé pour <strong>${d.email}</strong>. Transmettez ces 2 éléments en main propre — ils ne seront plus jamais affichés :<br><br>
       <strong>Mot de passe temporaire :</strong><br><span class="mono" style="font-size:16px;font-weight:700;color:var(--navy)">${d.tempPassword}</span><br><br>
       <strong>Canal de notification (topic ntfy) :</strong><br><span class="mono" style="font-size:14px;font-weight:700;color:var(--navy)">${d.ntfyTopic}</span><br>
-      <span style="font-size:12px;color:var(--t3)">L'admin doit installer l'app ntfy (ou aller sur ntfy.sh dans un navigateur) puis s'abonner à ce topic exact avant de pouvoir se connecter.</span>`;
+      <span style="font-size:12px;color:var(--t3)">L'admin doit installer l'app ntfy (ou aller sur ntfy.sh dans un navigateur) puis s'abonner à ce topic exact avant de pouvoir se connecter. Dans les réglages de l'app : activer "Instant delivery" (contourner le mode Doze), laisser "Use another server" décoché.</span>`;
     $('new-admin-email').value='';
     loadAdminsList();
   }catch(e){
@@ -938,12 +1029,33 @@ async function createDelegatedAdmin(){
 }
 
 async function resetAdminPassword(email){
-  if(!confirm(`Réinitialiser le mot de passe de ${email} ? Un nouveau mot de passe temporaire sera généré.`))return;
+  if(!confirm(`Réinitialiser le mot de passe ET le canal ntfy de ${email} ?\n\nÀ utiliser uniquement en dernier recours (compte réellement bloqué) — un mot de passe simplement oublié se règle depuis l'écran de connexion sans vous solliciter.`))return;
   try{
     const r=await fetch('/.netlify/functions/admin-reset-password',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email})});
     const d=await r.json();
     if(!r.ok){alert(d.error||'Erreur.');return;}
-    alert(`Nouveau mot de passe temporaire pour ${d.email} :\\n\\n${d.tempPassword}\\n\\nTransmettez-le en main propre — il ne sera plus affiché.`);
+    alert(`Nouveaux identifiants pour ${d.email} — transmettez-les en main propre, ils ne seront plus affichés :\n\nMot de passe temporaire :\n${d.tempPassword}\n\nTopic ntfy :\n${d.ntfyTopic}\n\nL'admin doit s'abonner à ce nouveau topic avant de pouvoir se reconnecter.`);
+    loadAdminsList();
+  }catch(e){alert('Erreur réseau.');}
+}
+
+async function setAdminActive(email,active){
+  const verb=active?'réactiver':'suspendre';
+  if(!confirm(`Confirmer : ${verb} le compte ${email} ?`))return;
+  try{
+    const r=await fetch('/.netlify/functions/admin-set-active',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email,active})});
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'Erreur.');return;}
+    loadAdminsList();
+  }catch(e){alert('Erreur réseau.');}
+}
+
+async function deleteAdmin(email){
+  if(!confirm(`⚠️ Supprimer définitivement le compte ${email} ?\n\nCette action est irréversible.`))return;
+  try{
+    const r=await fetch('/.netlify/functions/admin-delete',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'Erreur.');return;}
     loadAdminsList();
   }catch(e){alert('Erreur réseau.');}
 }
