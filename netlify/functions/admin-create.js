@@ -9,7 +9,7 @@
 // Enforces: max 10 delegated admins (master excluded), unique email.
 
 const { json, preflight, parseBody, requireSession } = require('./_lib/http');
-const { hashPassword, generateTempPassword } = require('./_lib/crypto');
+const { hashPassword, generateTempPassword, generateNtfyTopic } = require('./_lib/crypto');
 const { airtableListAll, airtableRequest } = require('./_lib/airtable');
 
 const MAX_DELEGATED_ADMINS = 10;
@@ -23,12 +23,9 @@ exports.handler = async function (event) {
   if (!session) return json(401, { error: 'Session invalide ou expirée.' });
   if (session.role !== 'master') return json(403, { error: 'Réservé au master admin.' });
 
-  const { email, telegramChatId } = parseBody(event);
+  const { email } = parseBody(event);
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return json(400, { error: 'Adresse email invalide.' });
-  }
-  if (!telegramChatId) {
-    return json(400, { error: "Le Telegram Chat ID de l'administrateur est requis (nécessaire pour son 2FA)." });
   }
 
   const emailNorm = String(email).trim().toLowerCase();
@@ -44,13 +41,14 @@ exports.handler = async function (event) {
 
     const tempPassword = generateTempPassword();
     const hash = hashPassword(tempPassword);
+    const ntfyTopic = generateNtfyTopic();
 
     await airtableRequest('Admins', 'POST', {
       fields: {
         Email: emailNorm,
         PasswordHash: hash,
         Role: 'Admin',
-        TelegramChatId: telegramChatId,
+        NtfyTopic: ntfyTopic,
         MustChangePassword: 'Oui',
         Actif: 'Oui',
         CreatedBy: session.email,
@@ -58,7 +56,7 @@ exports.handler = async function (event) {
       },
     });
 
-    return json(200, { ok: true, email: emailNorm, tempPassword });
+    return json(200, { ok: true, email: emailNorm, tempPassword, ntfyTopic });
   } catch (e) {
     return json(500, { error: 'Erreur serveur : ' + e.message });
   }

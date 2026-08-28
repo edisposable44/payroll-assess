@@ -1,7 +1,7 @@
 // netlify/functions/admin-list.js
 // MASTER ADMIN ONLY: lists all admin accounts (master + delegated) for the
 // "Administrateurs" management tab. Never returns PasswordHash or
-// TelegramChatId — those stay server-side only.
+// NtfyTopic — those stay server-side only (it's effectively a shared secret).
 
 const { json, preflight, requireSession } = require('./_lib/http');
 const { airtableListAll } = require('./_lib/airtable');
@@ -25,7 +25,7 @@ exports.handler = async function (event) {
         mustChangePassword: r.fields.MustChangePassword === 'Oui',
         createdBy: r.fields.CreatedBy || '',
         createdAt: r.fields.CreatedAt || '',
-        hasTelegramChatId: !!r.fields.TelegramChatId,
+        hasNtfyTopic: !!r.fields.NtfyTopic,
       }))
       .sort((a, b) => (a.role === b.role ? a.email.localeCompare(b.email) : a.role === 'Master' ? -1 : 1));
     return json(200, { admins });
