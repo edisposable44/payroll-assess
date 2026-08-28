@@ -1,6 +1,6 @@
 // netlify/functions/admin-login.js
 // Step 1 of admin authentication: verify email + password.
-// On success, generates a 6-digit OTP, pushes it via Pushover, and returns a
+// On success, generates a 6-digit OTP, sends it via Telegram Bot, and returns a
 // short-lived, stateless "otp_pending" token that embeds the OTP's hash (not
 // the OTP itself) — admin-verify-otp.js checks the code against this token.
 //
@@ -10,7 +10,7 @@
 const { json, preflight, parseBody } = require('./_lib/http');
 const { verifyPassword, signToken, generateOtp, hashOtp } = require('./_lib/crypto');
 const { airtableListAll } = require('./_lib/airtable');
-const { sendOtpPush } = require('./_lib/pushover');
+const { sendOtpTelegram } = require('./_lib/telegram');
 
 const OTP_TTL_SECONDS = 5 * 60; // 5 minutes
 
@@ -45,14 +45,14 @@ exports.handler = async function (event) {
       return json(200, { stage: 'ok', token, role, mustChangePassword: mustChange });
     }
 
-    if (!rec.fields.PushoverUserKey) {
+    if (!rec.fields.TelegramChatId) {
       return json(400, {
-        error: "Aucune clé Pushover configurée pour ce compte. Contactez le master admin pour l'ajouter avant de pouvoir vous connecter.",
+        error: "Aucun compte Telegram configuré. Contactez le master admin pour l'ajouter avant de pouvoir vous connecter.",
       });
     }
 
     const otp = generateOtp();
-    await sendOtpPush(rec.fields.PushoverUserKey, otp);
+    await sendOtpTelegram(rec.fields.TelegramChatId, otp);
 
     const tempToken = signToken(
       { typ: 'otp_pending', email: emailNorm, role, mustChange, otpHash: hashOtp(otp), attempts: 0 },

@@ -23,12 +23,12 @@ exports.handler = async function (event) {
   if (!session) return json(401, { error: 'Session invalide ou expirée.' });
   if (session.role !== 'master') return json(403, { error: 'Réservé au master admin.' });
 
-  const { email, pushoverUserKey } = parseBody(event);
+  const { email, telegramChatId } = parseBody(event);
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return json(400, { error: 'Adresse email invalide.' });
   }
-  if (!pushoverUserKey) {
-    return json(400, { error: "La clé Pushover de l'administrateur est requise (nécessaire pour son 2FA)." });
+  if (!telegramChatId) {
+    return json(400, { error: "Le Telegram Chat ID de l'administrateur est requis (nécessaire pour son 2FA)." });
   }
 
   const emailNorm = String(email).trim().toLowerCase();
@@ -50,7 +50,7 @@ exports.handler = async function (event) {
         Email: emailNorm,
         PasswordHash: hash,
         Role: 'Admin',
-        PushoverUserKey: pushoverUserKey,
+        TelegramChatId: telegramChatId,
         MustChangePassword: 'Oui',
         Actif: 'Oui',
         CreatedBy: session.email,

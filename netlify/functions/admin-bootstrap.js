@@ -7,7 +7,7 @@
 // Call it once (e.g. with curl or Postman):
 //   POST /.netlify/functions/admin-bootstrap
 //   { "secret": "<BOOTSTRAP_SECRET>", "email": "you@company.com",
-//     "password": "YourChosenPassword123!", "pushoverUserKey": "u1a2b3..." }
+//     "password": "YourChosenPassword123!", "telegramChatId": "123456789" }
 //
 // Refuses to run again once a Master record already exists.
 
@@ -21,7 +21,7 @@ exports.handler = async function (event) {
   if (pf) return pf;
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' });
 
-  const { secret, email, password, pushoverUserKey } = parseBody(event);
+  const { secret, email, password, telegramChatId } = parseBody(event);
 
   const expected = process.env.BOOTSTRAP_SECRET;
   if (!expected) return json(500, { error: 'Server not configured: BOOTSTRAP_SECRET missing.' });
@@ -32,8 +32,8 @@ exports.handler = async function (event) {
   if (!email || !password) {
     return json(400, { error: 'email and password are required.' });
   }
-  if (!pushoverUserKey) {
-    return json(400, { error: 'pushoverUserKey is required so the master admin can receive 2FA codes.' });
+  if (!telegramChatId) {
+    return json(400, { error: 'telegramChatId is required so the master admin can receive 2FA codes.' });
   }
   if (String(password).length < 10) {
     return json(400, { error: 'Password must be at least 10 characters.' });
@@ -51,7 +51,7 @@ exports.handler = async function (event) {
         Email: String(email).trim().toLowerCase(),
         PasswordHash: hash,
         Role: 'Master',
-        PushoverUserKey: pushoverUserKey,
+        TelegramChatId: telegramChatId,
         MustChangePassword: 'Non',
         Actif: 'Oui',
         CreatedBy: 'bootstrap',

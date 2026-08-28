@@ -1,5 +1,5 @@
 // netlify/functions/admin-verify-otp.js
-// Step 2 of admin authentication: verify the 6-digit Pushover code against the
+// Step 2 of admin authentication: verify the 6-digit Telegram code against the
 // hash embedded in the "otp_pending" token from admin-login.js.
 //
 // Rate limiting without a database: each failed attempt returns a NEW
