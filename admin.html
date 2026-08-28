@@ -6,7 +6,7 @@
 <meta http-equiv="Expires" content="0">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PayrollAssess — Évaluation Paie · iiPay</title>
+<title>PayrollAssess — Espace Recruteur · iiPay</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
@@ -100,6 +100,7 @@ select.input{cursor:pointer}
 .land-footer{margin-top:40px;font-size:12px;color:rgba(255,255,255,.3)}
 
 /* ADMIN */
+#s-admin{background:var(--page)}
 .admin-layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
 .admin-sidebar{background:var(--navy);display:flex;flex-direction:column;padding:0}
 .sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
@@ -271,152 +272,402 @@ select.input{cursor:pointer}
 @keyframes blink-red{0%,100%{opacity:1}50%{opacity:0}}
 .q-error-msg{display:none;color:var(--red);font-size:13px;font-weight:600;padding:6px 10px;background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--rs)}
 .btn-teal:disabled,.btn-teal[disabled]{opacity:.35;cursor:not-allowed;pointer-events:none}
+
+.mono{font-family:'SF Mono',Consolas,monospace}
+.badge-navy{background:var(--navy);color:#fff}
+
 </style>
 </head>
 <body>
 
-<!-- LANDING (candidate-only — no admin entry point here) -->
-<div id="s-landing" class="screen">
-<div class="land-inner">
-  <div class="land-logo"><div class="land-logo-icon">💼</div><span class="land-logo-text">PayrollAssess</span></div>
-  <p class="land-tagline">Plateforme d'évaluation Paie · iiPay</p>
-  <div class="land-cards" style="grid-template-columns:1fr">
-    <div class="land-card" onclick="goCandidate()">
-      <div class="land-card-icon" style="background:rgba(255,255,255,.08)">🎯</div>
-      <div class="land-card-title">Passer le test</div>
-      <div class="land-card-sub">Accéder avec votre code PIN</div>
+<!-- ADMIN LOGIN -->
+<div id="s-login" class="screen">
+<div class="login-wrap">
+<div class="login-card">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+    <div style="width:36px;height:36px;background:var(--navy);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px">💼</div>
+    <span style="font-size:18px;font-weight:700;color:var(--t1)">PayrollAssess</span>
+  </div>
+  <p class="eyebrow" style="margin-bottom:24px">Espace Administration</p>
+
+  <div id="login-step-creds">
+    <div class="input-group"><label class="input-label">Email</label>
+    <input type="email" id="login-email" class="input" placeholder="vous@iipay.com" autocomplete="username"></div>
+    <div class="input-group"><label class="input-label">Mot de passe</label>
+    <input type="password" id="login-pwd" class="input" placeholder="••••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginAdmin()"></div>
+    <div id="login-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
+    <button class="btn btn-primary btn-full" id="login-submit-btn" onclick="loginAdmin()">Accéder</button>
+  </div>
+
+  <div id="login-step-otp" style="display:none">
+    <p class="h3" style="margin-bottom:4px">Code de vérification</p>
+    <p class="body" style="margin-bottom:20px">Un code à 6 chiffres a été envoyé sur votre appareil Pushover. Il est valable 5 minutes.</p>
+    <div class="input-group"><label class="input-label">Code à 6 chiffres</label>
+    <input type="text" id="otp-input" class="input" maxlength="6" inputmode="numeric" placeholder="000000" style="letter-spacing:.3em;text-align:center;font-size:20px;font-weight:700" onkeydown="if(event.key==='Enter')verifyOtpCode()"></div>
+    <div id="otp-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
+    <button class="btn btn-teal btn-full" id="otp-submit-btn" onclick="verifyOtpCode()">Vérifier</button>
+    <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="resetLoginForm()">← Retour</button>
+  </div>
+
+  <div id="login-step-changepwd" style="display:none">
+    <p class="h3" style="margin-bottom:4px">Choisissez votre mot de passe</p>
+    <p class="body" style="margin-bottom:20px">Première connexion (ou réinitialisation) : définissez votre mot de passe personnel. Au moins 10 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial.</p>
+    <div class="input-group"><label class="input-label">Mot de passe temporaire reçu</label><input type="password" id="chpwd-current" class="input" placeholder="••••••••••"></div>
+    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="chpwd-new1" class="input" placeholder="••••••••••"></div>
+    <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="chpwd-new2" class="input" placeholder="••••••••••"></div>
+    <div id="chpwd-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
+    <button class="btn btn-teal btn-full" id="chpwd-submit-btn" onclick="submitForcedPasswordChange()">Mettre à jour et continuer</button>
+  </div>
+</div>
+</div>
+</div>
+
+
+<!-- ADMIN DASHBOARD -->
+<div id="s-admin" class="screen">
+<div style="display:flex;align-items:center;justify-content:flex-end;gap:12px;padding:10px 24px;background:var(--surface);border-bottom:1px solid var(--border);font-size:13px;color:var(--t2)">
+  <span id="admin-user-email"></span>
+  <button class="btn btn-ghost btn-sm" onclick="logout()">Déconnexion</button>
+</div>
+
+<div class="admin-layout">
+<div class="admin-sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-row"><div class="sidebar-logo-icon">💼</div><span class="sidebar-logo-text">PayrollAssess</span></div>
+  </div>
+  <p class="sidebar-badge">Administration</p>
+  <div class="sidebar-nav">
+    <div class="nav-item active" onclick="switchTab('sessions')" id="nav-sessions"><span class="nav-item-icon">📋</span>Candidats</div>
+    <div class="nav-item" onclick="switchTab('new')" id="nav-new"><span class="nav-item-icon">➕</span>Nouveau candidat</div>
+    <div class="nav-item" onclick="switchTab('questions')" id="nav-questions"><span class="nav-item-icon">📚</span>Banque de questions</div>
+    <div class="nav-item" onclick="switchTab('settings')" id="nav-settings"><span class="nav-item-icon">⚙️</span>Paramètres</div>
+    <div class="nav-item" id="nav-admins" onclick="switchTab('admins')" style="display:none"><span class="nav-item-icon">👥</span>Administrateurs</div>
+  </div>
+  <div class="sidebar-footer">
+    <button class="btn btn-ghost btn-full btn-sm" style="color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.15);font-size:12px" onclick="logout()">Déconnexion</button>
+  </div>
+</div>
+<div class="admin-content">
+
+  <!-- SESSIONS TAB -->
+  <div id="tab-sessions" class="admin-panel active">
+    <div class="admin-header">
+      <div><div class="admin-title">Candidats</div><div class="admin-subtitle">Sessions ouvertes et résultats · <span id="last-refresh" style="color:var(--t3);font-size:12px">—</span></div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="loadAndRender()" title="Rafraîchir">🔄 Rafraîchir</button>
+        <button class="btn btn-teal btn-sm" onclick="switchTab('new')">+ Nouveau candidat</button>
+      </div>
+    </div>
+    <div class="stats-grid" id="admin-stats">
+      <div class="stat-card"><div class="stat-lbl">Total</div><div class="stat-val" id="stat-total">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Ouvertes</div><div class="stat-val" id="stat-open" style="color:var(--gold)">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Terminées</div><div class="stat-val" id="stat-done" style="color:var(--green)">0</div></div>
+      <div class="stat-card"><div class="stat-lbl">Moy. score</div><div class="stat-val" id="stat-avg" style="color:var(--teal)">—</div></div>
+    </div><!-- /stats-grid -->
+
+    <!-- ── FILTRES TABLEAU CANDIDATS ─────────────────────────────────────── -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;align-items:flex-end">
+      <div style="flex:2;min-width:160px"><label class="input-label">Recherche (nom / prénom)</label>
+        <input type="text" id="sf-name" class="input" placeholder="Marie…" oninput="renderSessions()">
+      </div>
+      <div style="min-width:150px"><label class="input-label">Poste</label>
+        <select id="sf-profil" class="input" onchange="renderSessions()">
+          <option value="">Tous les postes</option>
+          <option value="ASSOCIATE">Associate</option>
+          <option value="SENIOR">Senior</option>
+          <option value="TEAM_LEADER">Team Leader</option>
+        </select>
+      </div>
+      <div style="min-width:130px"><label class="input-label">Statut</label>
+        <select id="sf-status" class="input" onchange="renderSessions()">
+          <option value="">Tous</option>
+          <option value="ouverte">Ouvertes</option>
+          <option value="en_cours">En cours</option>
+          <option value="done">Terminées</option>
+          <option value="closed">Fermées</option>
+        </select>
+      </div>
+      <div style="min-width:130px"><label class="input-label">Date du</label>
+        <input type="date" id="sf-from" class="input" onchange="renderSessions()">
+      </div>
+      <div style="min-width:130px"><label class="input-label">Date au</label>
+        <input type="date" id="sf-to" class="input" onchange="renderSessions()">
+      </div>
+      <button class="btn btn-teal btn-sm" onclick="resetSessionFilters()" style="white-space:nowrap">↺ Réinitialiser</button>
+    </div>
+    <div class="table-wrap">
+      <table class="table" id="sessions-table">
+        <thead><tr><th>Candidat</th><th>Poste</th><th>PIN</th><th>Statut</th><th>Score</th><th style="min-width:130px">Comportemental</th><th>Durée</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody id="sessions-tbody"><tr><td colspan="8" class="table-empty">Chargement…</td></tr></tbody>
+      </table>
     </div>
   </div>
-  <div class="land-footer">PayrollAssess v3 · iiPay French Payroll Operations</div>
+
+  <!-- NEW SESSION TAB -->
+  <div id="tab-new" class="admin-panel">
+    <div class="admin-header"><div><div class="admin-title">Nouveau candidat</div><div class="admin-subtitle">Ouvrir une session de questionnaire</div></div></div>
+    <div style="max-width:480px">
+      <div class="card">
+        <div class="two-col">
+          <div class="input-group"><label class="input-label">Nom</label><input type="text" id="new-nom" class="input" placeholder="Dupont"></div>
+          <div class="input-group"><label class="input-label">Prénom</label><input type="text" id="new-prenom" class="input" placeholder="Marie"></div>
+        </div>
+        <div class="input-group"><label class="input-label">Poste visé</label>
+          <select id="new-profil" class="input">
+            <option value="">— Choisir un profil —</option>
+            <option value="ASSOCIATE">French Payroll Associate</option>
+            <option value="SENIOR">Gestionnaire de Paie Senior</option>
+            <option value="TEAM_LEADER">Team Leader — Payroll Operations</option>
+          </select>
+        </div>
+        <div class="two-col">
+          <div class="input-group"><label class="input-label">Durée (minutes)</label>
+            <input type="number" id="new-duree" class="input" value="7" min="3" max="60">
+          </div>
+          <div class="input-group"><label class="input-label">Nombre de questions</label>
+            <input type="number" id="new-nq" class="input" value="10" min="5" max="30">
+          </div>
+        </div>
+        <div id="new-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
+        <button class="btn btn-teal btn-full" onclick="createSession()">Ouvrir la session →</button>
+      </div>
+      <!-- PIN Result -->
+      <div id="pin-result" style="display:none;margin-top:16px">
+        <div class="card" style="text-align:center">
+          <div class="eyebrow" style="margin-bottom:8px">Session ouverte — Code PIN à communiquer</div>
+          <div class="pin-display" id="pin-display">------</div>
+          <p class="body" style="margin-top:12px;max-width:320px;margin-left:auto;margin-right:auto">Transmettez ce code au candidat. Il sera valide jusqu'à la fermeture manuelle de la session.</p>
+          <div style="display:flex;gap:8px;justify-content:center;margin-top:16px">
+            <button class="btn btn-ghost btn-sm" onclick="copyPIN()">📋 Copier le PIN</button>
+            <button class="btn btn-primary btn-sm" onclick="switchTab('sessions')">Voir les candidats</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS TAB -->
+  <div id="tab-settings" class="admin-panel">
+    <div class="admin-header"><div><div class="admin-title">Paramètres</div><div class="admin-subtitle">Configuration de l'application</div></div></div>
+    <div style="max-width:500px;display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div class="h3" style="margin-bottom:16px">Paramètres par défaut du quiz</div>
+        <div class="two-col">
+          <div class="input-group"><label class="input-label">Durée (minutes)</label>
+            <input type="number" id="cfg-duree" class="input" value="7" min="3" max="60">
+            <div class="input-hint">Recommandé : 7 min pour 10 questions</div>
+          </div>
+          <div class="input-group"><label class="input-label">Nombre de questions</label>
+            <input type="number" id="cfg-nq" class="input" value="10" min="5" max="30">
+            <div class="input-hint">Min 5 · Max 30 · Défaut 10</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:10px;margin:16px 0;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs)">
+          <input type="checkbox" id="cfg-allow-pdf" checked style="width:18px;height:18px;margin-top:2px;accent-color:var(--teal);flex-shrink:0">
+          <div>
+            <label for="cfg-allow-pdf" style="font-weight:600;font-size:13px;cursor:pointer">Autoriser le candidat à télécharger sa correction PDF</label>
+            <div class="input-hint" style="margin-top:2px">Si décoché, le bouton de téléchargement n'apparaît plus dans l'espace candidat. S'applique aux nouvelles sessions créées.</div>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="saveDefaults()">Enregistrer les paramètres</button>
+      </div>
+      <div class="card">
+        <div class="h3" style="margin-bottom:4px">Connexion Airtable</div>
+        <p class="body" style="margin-bottom:14px">Le token est configuré côté serveur (variables d'environnement Netlify) — jamais exposé dans le navigateur, ni recruteur ni candidat.</p>
+        <div id="at-status-box" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:12px;font-size:13px">
+          <span id="at-status-text" style="color:var(--t3)">Statut non vérifié</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="testAirtable()">🔌 Tester la connexion</button>
+        <div class="input-hint" style="margin-top:10px">
+          Configuration serveur (une seule fois) : dans Netlify → Site settings → Environment variables, ajoutez <code>AIRTABLE_TOKEN</code> et <code>AIRTABLE_BASE_ID</code>, puis redéployez. Le fichier <code>netlify/functions/airtable.js</code> fourni gère le relais de façon sécurisée.
+        </div>
+      </div>
+      <div class="card">
+        <div class="h3" style="margin-bottom:16px">Changer le mot de passe</div>
+        <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="chg-p1" class="input" placeholder="••••••••••"></div>
+        <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="chg-p2" class="input" placeholder="••••••••••"></div>
+        <div id="chg-err" class="error-msg" style="display:none;margin-bottom:10px"></div>
+        <button class="btn btn-ghost btn-sm" onclick="changePassword()">Mettre à jour</button>
+      </div>
+      <div class="card" style="border:1px solid var(--border)">
+        <div class="h3" style="margin-bottom:8px">Exporter les résultats</div>
+        <p class="body" style="margin-bottom:12px">Téléchargez un fichier CSV de tous les résultats enregistrés.</p>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 Télécharger CSV</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- QUESTIONS TAB -->
+  <div id="tab-questions" class="admin-panel">
+    <div class="admin-header">
+      <div><div class="admin-title">Banque de questions</div><div class="admin-subtitle" id="q-count-lbl">— questions</div></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="resetQuestionsToDefault()" title="Réinitialiser aux questions d'origine">↺ Réinitialiser</button>
+        <button class="btn btn-teal btn-sm" onclick="openQEditor(null)">+ Nouvelle question</button>
+      </div>
+    </div>
+    <!-- Filtres -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px">
+      <div style="flex:2;min-width:160px"><label class="input-label">Recherche</label><input type="text" id="qf-search" class="input" placeholder="Mot clé…" oninput="QA_PAGE=0;renderQAdmin()"></div>
+      <div style="min-width:130px"><label class="input-label">Profil</label>
+        <select id="qf-profil" class="input" onchange="QA_PAGE=0;renderQAdmin()">
+          <option value="">Tous</option>
+          <option value="ALL">ALL</option>
+          <option value="ASSOCIATE">Associate</option>
+          <option value="SENIOR">Senior</option>
+          <option value="TEAM_LEADER">Team Leader</option>
+        </select>
+      </div>
+      <div style="min-width:110px"><label class="input-label">Niveau</label>
+        <select id="qf-niveau" class="input" onchange="QA_PAGE=0;renderQAdmin()">
+          <option value="">Tous</option>
+          <option value="1">1 · Débutant</option>
+          <option value="2">2 · Intermédiaire</option>
+          <option value="3">3 · Avancé</option>
+          <option value="4">4 · Expert</option>
+        </select>
+      </div>
+      <div style="min-width:110px"><label class="input-label">Type</label>
+        <select id="qf-type" class="input" onchange="QA_PAGE=0;renderQAdmin()">
+          <option value="">Tous</option>
+          <option value="s">Simple (QCM)</option>
+          <option value="m">Multiple (QCM)</option>
+          <option value="o">Ouverte</option>
+        </select>
+      </div>
+      <div style="min-width:120px"><label class="input-label">Comportemental</label>
+        <select id="qf-bh" class="input" onchange="QA_PAGE=0;renderQAdmin()">
+          <option value="">Tous</option>
+          <option value="none">Non comportemental</option>
+          <option value="AUT">Autonomie</option>
+          <option value="PRO">Proactivité</option>
+          <option value="PRE">Pression</option>
+          <option value="RES">Responsabilité</option>
+        </select>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="table" id="q-table">
+        <thead><tr><th style="width:70px">ID</th><th style="width:45px">Niv.</th><th style="width:50px">Type</th><th>Profils</th><th>Question</th><th style="width:80px">Axe</th><th style="width:80px">Actions</th></tr></thead>
+        <tbody id="q-tbody"><tr><td colspan="7" class="table-empty">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+    <div id="q-pagination" style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:13px;color:var(--t3)"></div>
+  </div>
+</div><!-- /admin-content -->
+</div><!-- /admin-layout -->
+</div><!-- /s-admin -->
+
+
+
+
+  <!-- ADMINS TAB (master only) -->
+  <div id="tab-admins" class="admin-panel">
+    <div class="admin-header">
+      <div><div class="admin-title">Administrateurs</div><div class="admin-subtitle">Comptes délégués · master exclu · max 10</div></div>
+    </div>
+    <div class="card" style="margin-bottom:20px">
+      <div class="h3" style="margin-bottom:16px">Créer un administrateur délégué</div>
+      <div class="two-col">
+        <div class="input-group"><label class="input-label">Email</label><input type="email" id="new-admin-email" class="input" placeholder="collegue@iipay.com"></div>
+        <div class="input-group"><label class="input-label">Clé Pushover (User Key)</label><input type="text" id="new-admin-pushover" class="input" placeholder="u1a2b3c4..."></div>
+      </div>
+      <div id="new-admin-err" class="error-msg" style="display:none;margin-bottom:10px"></div>
+      <button class="btn btn-teal btn-sm" id="new-admin-submit-btn" onclick="createDelegatedAdmin()">Créer l'administrateur</button>
+      <div id="new-admin-result" style="display:none;margin-top:14px;padding:12px 14px;background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--rs);font-size:13px;line-height:1.6"></div>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Email</th><th>Rôle</th><th>Statut</th><th>Mot de passe</th><th>2FA</th><th>Actions</th></tr></thead>
+        <tbody id="admins-tbody"><tr><td colspan="6" class="table-empty">Chargement…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- QUESTION EDITOR MODAL -->
+<div class="modal-overlay" id="q-modal">
+<div class="modal" style="max-width:720px;max-height:90vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div class="h3" id="q-modal-title">Nouvelle question</div>
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="closeQModal()">✕</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="input-group"><label class="input-label">ID Question</label><input type="text" id="qe-id" class="input" placeholder="ex. L1_99"></div>
+    <div class="input-group"><label class="input-label">Niveau</label>
+      <select id="qe-niveau" class="input">
+        <option value="1">1 · Débutant</option><option value="2">2 · Intermédiaire</option>
+        <option value="3">3 · Avancé</option><option value="4">4 · Expert</option>
+      </select>
+    </div>
+    <div class="input-group"><label class="input-label">Type</label>
+      <select id="qe-type" class="input" onchange="toggleQeType()">
+        <option value="s">s · QCM simple</option>
+        <option value="m">m · QCM multiple</option>
+        <option value="o">o · Question ouverte</option>
+      </select>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+    <div class="input-group"><label class="input-label">Profils (cocher tous ceux qui s'appliquent)</label>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;padding:8px 0">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="qe-pr-all" style="accent-color:var(--teal)"> ALL</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="qe-pr-asso" style="accent-color:var(--teal)"> ASSOCIATE</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="qe-pr-sen" style="accent-color:var(--teal)"> SENIOR</label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="qe-pr-tl" style="accent-color:var(--teal)"> TEAM_LEADER</label>
+      </div>
+    </div>
+    <div class="input-group"><label class="input-label">Axe comportemental</label>
+      <select id="qe-bh" class="input">
+        <option value="">Aucun</option>
+        <option value="AUT">AUT · Autonomie</option>
+        <option value="PRO">PRO · Proactivité</option>
+        <option value="PRE">PRE · Gestion de la pression</option>
+        <option value="RES">RES · Responsabilité</option>
+      </select>
+    </div>
+  </div>
+  <div class="input-group"><label class="input-label">Énoncé de la question</label>
+    <textarea id="qe-question" class="input" rows="3" style="resize:vertical;font-family:inherit;font-size:14px"></textarea>
+  </div>
+  <div id="qe-opts-section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <label class="input-label" style="margin-bottom:0">Options de réponse</label>
+      <button class="btn btn-ghost btn-sm" onclick="addQeOption()">+ Ajouter une option</button>
+    </div>
+    <div id="qe-opts-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+    <div class="card-inset" style="font-size:12px;color:var(--t2)">
+      <strong>Réponses correctes :</strong> cochez la/les case(s) à gauche de chaque option correcte. Pour les QCM multiples, cochez toutes les bonnes réponses.
+    </div>
+  </div>
+  <div id="qe-bw-section" style="display:none;margin-top:10px">
+    <div class="card-inset" style="font-size:12px;color:var(--t2);margin-bottom:8px">
+      <strong>Poids comportementaux</strong> (0 = faible, 3 = fort) : indiquez le poids de chaque option sur l'axe comportemental choisi.
+    </div>
+    <div id="qe-bw-list" style="display:flex;flex-direction:column;gap:4px"></div>
+  </div>
+  <div class="input-group" style="margin-top:12px"><label class="input-label">Explication / Correction</label>
+    <textarea id="qe-explication" class="input" rows="4" style="resize:vertical;font-family:inherit;font-size:14px"></textarea>
+  </div>
+  <div id="q-edit-err" class="error-msg" style="display:none;margin-bottom:10px"></div>
+  <div style="display:flex;gap:10px;margin-top:8px">
+    <button class="btn btn-teal" style="flex:1" onclick="saveQEditor()">💾 Enregistrer</button>
+    <button class="btn btn-ghost" onclick="closeQModal()">Annuler</button>
+  </div>
+</div>
+</div>
+<!-- RESULT DETAIL MODAL -->
+<div class="modal-overlay" id="result-modal">
+<div class="modal" style="max-width:680px;max-height:85vh;overflow-y:auto">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+    <div class="h3" id="modal-title">Résultat</div>
+    <button class="btn btn-ghost btn-sm btn-icon" onclick="closeModal()">✕</button>
+  </div>
+  <div id="modal-content"></div>
 </div>
 </div>
 
-<div id="s-candidate" class="screen">
-<div class="cand-wrap">
-  <div class="cand-header">
-    <div class="cand-logo"><div class="cand-logo-icon">💼</div><span class="cand-logo-text">PayrollAssess</span></div>
-    <div class="steps" id="cand-steps">
-      <div class="step active" id="step-1">1</div><div class="step-line" id="sl-1"></div>
-      <div class="step" id="step-2">2</div><div class="step-line" id="sl-2"></div>
-      <div class="step" id="step-3">3</div><div class="step-line" id="sl-3"></div>
-      <div class="step" id="step-4">4</div><div class="step-line" id="sl-4"></div>
-      <div class="step" id="step-5">✓</div>
-    </div>
-  </div>
-
-  <!-- STEP 1: PIN -->
-  <div id="cp-pin" class="cand-panel active">
-    <div class="card fade-in">
-      <div class="eyebrow" style="margin-bottom:6px">Accès au test</div>
-      <div class="h2" style="margin-bottom:6px">Entrez votre code PIN</div>
-      <p class="body" style="margin-bottom:24px">Votre recruteur vous a communiqué un code PIN à 6 caractères pour accéder à votre évaluation.</p>
-      <div class="input-group"><label class="input-label">Code PIN</label>
-        <input type="text" id="pin-input" class="input mono" placeholder="ex. K7X2M9" maxlength="6" style="font-size:22px;letter-spacing:.15em;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')verifyPIN()">
-      </div>
-      <div id="pin-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
-      <button class="btn btn-teal btn-full" onclick="verifyPIN()">Accéder →</button>
-      <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="showScreen('s-landing')">← Retour</button>
-    </div>
-  </div>
-
-  <!-- STEP 2: VERIFY -->
-  <div id="cp-verify" class="cand-panel">
-    <div class="card fade-in">
-      <div class="eyebrow" style="margin-bottom:6px">Confirmation de votre identité</div>
-      <div class="h2" style="margin-bottom:16px">Vérifiez vos informations</div>
-      <div class="card-inset" style="margin-bottom:20px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div><div class="small">Prénom</div><div style="font-weight:600;font-size:16px" id="vfy-prenom">—</div></div>
-          <div><div class="small">Nom</div><div style="font-weight:600;font-size:16px" id="vfy-nom">—</div></div>
-          <div style="grid-column:span 2"><div class="small">Poste évalué</div><div style="font-weight:600;font-size:15px" id="vfy-profil">—</div></div>
-          <div style="grid-column:span 2"><div class="small">Durée du test</div><div style="font-weight:600;font-size:15px" id="vfy-duree">—</div></div>
-        </div>
-      </div>
-      <div style="background:var(--gold-bg);border:1px solid #FDE68A;border-radius:var(--rs);padding:10px 14px;font-size:13px;color:#92400E;margin-bottom:20px">
-        ⚠️ Si ces informations sont incorrectes, contactez votre recruteur pour correction avant de continuer.
-      </div>
-      <button class="btn btn-teal btn-full" onclick="confirmIdentity()">Confirmer et continuer →</button>
-    </div>
-  </div>
-
-  <!-- STEP 3: INSTRUCTIONS -->
-  <div id="cp-instructions" class="cand-panel">
-    <div class="card fade-in">
-      <div class="eyebrow" style="margin-bottom:6px">Avant de commencer</div>
-      <div class="h2" style="margin-bottom:16px">Consignes du questionnaire</div>
-      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
-        <div class="card-inset"><span style="font-size:18px">⏱️</span> <strong>Durée :</strong> <span id="instr-duree">7 minutes</span> — le timer démarre dès votre validation</div>
-        <div class="card-inset"><span style="font-size:18px">📝</span> <strong class="instr-nq">10 questions</strong> à difficulté croissante, adaptées à votre profil de poste</div>
-        <div class="card-inset"><span style="font-size:18px">✅</span> <strong>Bonne réponse :</strong> +2 pts &nbsp;·&nbsp; <strong>Mauvaise :</strong> −1 pt</div>
-        <div class="card-inset"><span style="font-size:18px">⚠️</span> <strong>Réponse obligatoire</strong> pour chaque question — il n'est plus possible de passer à la suivante sans répondre. Une fois validée, la réponse ne peut plus être modifiée.</div>
-        <div class="card-inset"><span style="font-size:18px">📊</span> QCM multi-réponses : les points sont <strong>répartis entre les bonnes réponses</strong></div>
-        <div class="card-inset"><span style="font-size:18px">📝</span> Questions ouvertes : répondez dans le champ texte — évaluées à l'issue par le recruteur</div>
-      </div>
-      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14px;margin-bottom:20px">
-        <input type="checkbox" id="consent-check" style="width:16px;height:16px;accent-color:var(--teal)" onchange="document.getElementById('start-quiz-btn').disabled=!this.checked">
-        J'ai lu et j'accepte les consignes ci-dessus
-      </label>
-      <button id="start-quiz-btn" class="btn btn-teal btn-full" disabled onclick="startQuiz()">🚀 Démarrer le questionnaire</button>
-    </div>
-  </div>
-
-  <!-- STEP 4: QUIZ -->
-  <div id="cp-quiz" class="cand-panel">
-    <div class="card fade-in">
-      <div class="quiz-topbar">
-        <div class="quiz-user" id="quiz-user-label"></div>
-        <div class="timer-wrap">
-          <svg class="timer-svg" viewBox="0 0 60 60">
-            <circle class="timer-track" cx="30" cy="30" r="26"/>
-            <circle class="timer-ring" id="timer-ring" cx="30" cy="30" r="26"/>
-          </svg>
-          <div class="timer-text" id="timer-text">7:00</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--t3);margin-bottom:6px">
-        <span id="q-progress-lbl">Question 1 / 10</span><span id="q-pct">0%</span>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" id="q-progress" style="width:0%"></div></div>
-      <div id="quiz-question-area"></div>
-      <div class="q-actions">
-        <div class="q-error-msg" id="q-error-msg">⚠️ Vous devez sélectionner une réponse avant de valider.</div>
-        <button class="btn btn-teal" id="validate-btn" disabled onclick="validateQuestion()">Valider &amp; Suivant →</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP 5: RESULTS -->
-  <div id="cp-results" class="cand-panel">
-    <div class="card fade-in">
-      <div class="eyebrow" style="margin-bottom:12px;text-align:center">Évaluation terminée</div>
-      <div class="score-ring-wrap">
-        <svg class="score-ring-svg" viewBox="0 0 120 120">
-          <circle class="score-ring-track" cx="60" cy="60" r="54"/>
-          <circle class="score-ring-fill" id="score-ring" cx="60" cy="60" r="54"/>
-        </svg>
-        <div class="score-ring-text">
-          <div class="score-num" id="res-score">—</div>
-          <div class="score-den">/ 20</div>
-        </div>
-      </div>
-      <div style="text-align:center;margin-bottom:12px">
-        <div style="font-size:16px;font-weight:600;color:var(--t1)" id="res-name"></div>
-        <div style="margin-top:4px"><span class="level-pill" id="res-level-pill"></span></div>
-        <div class="body" id="res-comment" style="max-width:420px;margin:8px auto 0"></div>
-      </div>
-      <div class="results-stats" id="res-stats"></div>
-      <div id="res-next-box"></div>
-      <div class="divider"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-primary" id="res-download-btn" onclick="downloadCandidatePDF()">📥 Télécharger ma correction</button>
-        <button class="btn btn-ghost" onclick="showScreen('s-landing')">Retour à l'accueil</button>
-      </div>
-    </div>
-  </div>
-
-</div><!-- /cand-wrap -->
-</div><!-- /s-candidate -->
-
+<!-- CANDIDATE -->
 
 
 <script>
@@ -430,6 +681,10 @@ const CFG = {
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let State = {
+  adminAuth:false,
+  refreshId:null,
+  currentSession:null,
+  sessions:[],
   cand:{step:'pin',session:null,qs:[],ci:0,ans:[],timerID:null,remaining:0,started:null}
 };
 
@@ -478,43 +733,239 @@ function $(id){return document.getElementById(id)}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id)?.classList.add('active');}
 function shuf(a){const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];}return b;}
 function fmt(s){return`${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;}
+function gid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function genPIN(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let p='';for(let i=0;i<6;i++)p+=c[Math.floor(Math.random()*c.length)];return p;}
 function profileLabel(p){return PROFILES[p]?.label||p;}
 
-// ─── CANDIDATE DATA LAYER ───────────────────────────────────────────────────
-// Deliberately minimal: the candidate app can ONLY look up its own session by
-// PIN and write to that one session/result. It never lists all sessions or
-// all results — that capability lives exclusively behind the authenticated
-// admin dashboard (admin.html + admin-data.js). See netlify/functions/airtable.js
-// for the matching server-side allowlist that enforces this even if this
-// client code were bypassed entirely.
-function getQuestionsPool(){return QUESTIONS;}
+// ─── ADMIN AUTH (server-verified — see /.netlify/functions/admin-*) ───────────
 
-async function findSessionByPin(pin){
-  const formula="{PIN}='"+pin.replace(/'/g,"\\'")+"'";
-  const qs='filterByFormula='+encodeURIComponent(formula);
-  const r=await atReq('Sessions','GET',null,'',qs);
-  if(!r?.records?.length)return null;
-  const rec=r.records[0];
-  return {
-    _id:rec.id,
-    pin:rec.fields.PIN,
-    nom:rec.fields.Nom||'',
-    prenom:rec.fields.Prenom||'',
-    profil:rec.fields.Profil||'',
-    duree:rec.fields.Duree_min||7,
-    nq:rec.fields.Nq||10,
-    allowPdf:rec.fields.PDF_Autorise!=='Non',
-    status:normSt(rec.fields.Statut||'ouverte'),
-    createdAt:rec.fields.Ouvert_le||new Date().toISOString()
-  };
+// ─── ADMIN SESSION (client-side token holder) ──────────────────────────────────
+// The token is a signed, server-verified credential (see ADMIN_TOKEN_SECRET on
+// the Netlify Function side) — the client NEVER decides who's authenticated,
+// it just carries the token and every request is re-checked server-side.
+// Stored in sessionStorage (cleared when the tab/browser closes) rather than
+// localStorage — a deliberately shorter-lived, less "sticky" surface for an
+// admin credential than the candidate app's own preferences use.
+const AdminSession = {
+  get token(){return sessionStorage.getItem('pa_admin_token')||null;},
+  set token(t){ if(t) sessionStorage.setItem('pa_admin_token',t); else sessionStorage.removeItem('pa_admin_token'); },
+  get role(){return sessionStorage.getItem('pa_admin_role')||null;},
+  set role(r){ if(r) sessionStorage.setItem('pa_admin_role',r); else sessionStorage.removeItem('pa_admin_role'); },
+  get email(){return sessionStorage.getItem('pa_admin_email')||null;},
+  set email(e){ if(e) sessionStorage.setItem('pa_admin_email',e); else sessionStorage.removeItem('pa_admin_email'); },
+  clear(){ sessionStorage.removeItem('pa_admin_token'); sessionStorage.removeItem('pa_admin_role'); sessionStorage.removeItem('pa_admin_email'); },
+  isMaster(){ return this.role==='master'; }
+};
+
+// ─── AUTHENTICATED ADMIN DATA PROXY ────────────────────────────────────────────
+// Every admin dashboard call goes through /.netlify/functions/admin-data with
+// the session token attached. A 401 here means the token is invalid/expired —
+// bounce straight back to the login screen rather than silently failing.
+async function atReq(table,method='GET',body=null,id='',qs=''){
+  const cleanQs=qs.startsWith('?')?qs.slice(1):qs;
+  let url='/.netlify/functions/admin-data?table='+encodeURIComponent(table);
+  if(id)url+='&id='+encodeURIComponent(id);
+  if(cleanQs)url+='&qs='+encodeURIComponent(cleanQs);
+  const opts={method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+(AdminSession.token||'')}};
+  if(body){
+    if(method==='POST'||method==='PATCH')body.typecast=true;
+    opts.body=JSON.stringify(body);
+  }
+  try{
+    const r=await fetch(url,opts);
+    if(r.status===401){forceLogout('Votre session a expiré. Reconnectez-vous.');return null;}
+    if(!r.ok){const err=await r.json().catch(()=>({error:{message:r.statusText}}));console.warn('admin-data error:',r.status,err?.error||'');return null;}
+    const d=await r.json();
+    if(d.error){console.warn('admin-data API error:',d.error);return null;}
+    return d;
+  }catch(e){console.warn('admin-data fetch error:',e.message);return null;}
 }
 
-function lsGetSessions(){return CFG.get('sessions',[]);}
-function lsSaveSessions(arr){CFG.set('sessions',arr);}
-function lsGetResults(){return CFG.get('results',[]);}
-function lsSaveResult(r){const arr=lsGetResults();arr.push(r);CFG.set('results',arr);}
+function forceLogout(msg){
+  AdminSession.clear();
+  stopAutoRefresh();
+  showScreen('s-login');
+  resetLoginForm();
+  if(msg){$('login-err').textContent=msg;$('login-err').style.display='block';}
+}
 
-function goCandidate(){showScreen('s-candidate');setCandStep('pin');}
+// ─── LOGIN FLOW (email + password → OTP → dashboard) ───────────────────────────
+let PendingOtpToken=null;
+
+function resetLoginForm(){
+  $('login-email').value='';$('login-pwd').value='';
+  $('login-err').style.display='none';
+  $('login-step-creds').style.display='block';
+  $('login-step-otp').style.display='none';
+  $('login-step-changepwd').style.display='none';
+  $('otp-input').value='';$('otp-err').style.display='none';
+}
+
+async function loginAdmin(){
+  const email=$('login-email').value.trim();
+  const pwd=$('login-pwd').value;
+  $('login-err').style.display='none';
+  if(!email||!pwd){$('login-err').textContent='Email et mot de passe requis.';$('login-err').style.display='block';return;}
+  const btn=$('login-submit-btn');btn.disabled=true;btn.textContent='Connexion…';
+  try{
+    const r=await fetch('/.netlify/functions/admin-login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password:pwd})});
+    const d=await r.json();
+    if(!r.ok){$('login-err').textContent=d.error||'Erreur de connexion.';$('login-err').style.display='block';return;}
+    if(d.stage==='otp'){
+      PendingOtpToken=d.tempToken;
+      $('login-step-creds').style.display='none';
+      $('login-step-otp').style.display='block';
+      $('otp-input').focus();
+    } else {
+      onLoginSuccess(d.token,d.role,d.mustChangePassword,email);
+    }
+  }catch(e){
+    $('login-err').textContent='Erreur réseau. Réessayez.';$('login-err').style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Accéder';
+  }
+}
+
+async function verifyOtpCode(){
+  const code=$('otp-input').value.trim();
+  $('otp-err').style.display='none';
+  if(code.length!==6){$('otp-err').textContent='Le code doit contenir 6 chiffres.';$('otp-err').style.display='block';return;}
+  const btn=$('otp-submit-btn');btn.disabled=true;btn.textContent='Vérification…';
+  try{
+    const r=await fetch('/.netlify/functions/admin-verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tempToken:PendingOtpToken,code})});
+    const d=await r.json();
+    if(!r.ok){
+      $('otp-err').textContent=d.error||'Code incorrect.';$('otp-err').style.display='block';
+      if(d.tempToken)PendingOtpToken=d.tempToken; else {PendingOtpToken=null;resetLoginForm();}
+      return;
+    }
+    onLoginSuccess(d.token,d.role,d.mustChangePassword,$('login-email').value.trim());
+  }catch(e){
+    $('otp-err').textContent='Erreur réseau. Réessayez.';$('otp-err').style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Vérifier';
+  }
+}
+
+function onLoginSuccess(token,role,mustChange,email){
+  AdminSession.token=token;AdminSession.role=role;AdminSession.email=email;
+  if(mustChange){
+    $('login-step-creds').style.display='none';
+    $('login-step-otp').style.display='none';
+    $('login-step-changepwd').style.display='block';
+    return;
+  }
+  enterDashboard();
+}
+
+async function submitForcedPasswordChange(){
+  const current=$('chpwd-current').value;
+  const p1=$('chpwd-new1').value;
+  const p2=$('chpwd-new2').value;
+  $('chpwd-err').style.display='none';
+  if(p1!==p2){$('chpwd-err').textContent='Les mots de passe ne correspondent pas.';$('chpwd-err').style.display='block';return;}
+  const btn=$('chpwd-submit-btn');btn.disabled=true;btn.textContent='Mise à jour…';
+  try{
+    const r=await fetch('/.netlify/functions/admin-change-password',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({currentPassword:current,newPassword:p1})});
+    const d=await r.json();
+    if(!r.ok){$('chpwd-err').textContent=d.error||'Erreur.';$('chpwd-err').style.display='block';return;}
+    AdminSession.token=d.token;
+    enterDashboard();
+  }catch(e){
+    $('chpwd-err').textContent='Erreur réseau.';$('chpwd-err').style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Mettre à jour et continuer';
+  }
+}
+
+function enterDashboard(){
+  resetLoginForm();
+  showScreen('s-admin');
+  $('admin-user-email').textContent=AdminSession.email||'';
+  $('nav-admins').style.display=AdminSession.isMaster()?'':'none';
+  switchTab('sessions');
+}
+
+function goAdmin(){
+  if(AdminSession.token){enterDashboard();} else {resetLoginForm();showScreen('s-login');}
+}
+
+function logout(){forceLogout(null);}
+
+// ─── ADMIN MANAGEMENT (master only: create / reset / list delegated admins) ───
+async function loadAdminsList(){
+  if(!AdminSession.isMaster())return;
+  $('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Chargement…</td></tr>';
+  try{
+    const r=await fetch('/.netlify/functions/admin-list',{headers:{'Authorization':'Bearer '+AdminSession.token}});
+    if(r.status===401){forceLogout('Session expirée.');return;}
+    const d=await r.json();
+    if(!r.ok||!d.admins){$('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Erreur de chargement.</td></tr>';return;}
+    if(!d.admins.length){$('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Aucun administrateur.</td></tr>';return;}
+    $('admins-tbody').innerHTML=d.admins.map(a=>`
+      <tr>
+        <td><strong>${a.email}</strong></td>
+        <td><span class="badge ${a.role==='Master'?'badge-navy':'badge-teal'}">${a.role==='Master'?'Master':'Délégué'}</span></td>
+        <td>${a.actif?'<span class="st-open"><span class="status-dot"></span>Actif</span>':'<span class="st-closed"><span class="status-dot"></span>Inactif</span>'}</td>
+        <td>${a.mustChangePassword?'⚠️ En attente':'✅ Défini'}</td>
+        <td style="font-size:12px;color:var(--t3)">${a.hasPushoverKey?'✅':'❌'} Pushover</td>
+        <td>${a.role!=='Master'?`<button class="btn btn-ghost btn-sm" onclick='resetAdminPassword("${a.email}")'>↺ Réinitialiser</button>`:''}</td>
+      </tr>`).join('');
+  }catch(e){
+    $('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Erreur réseau.</td></tr>';
+  }
+}
+
+async function createDelegatedAdmin(){
+  const email=$('new-admin-email').value.trim();
+  const pushoverKey=$('new-admin-pushover').value.trim();
+  const err=$('new-admin-err');err.style.display='none';
+  if(!email||!pushoverKey){err.textContent='Email et clé Pushover requis.';err.style.display='block';return;}
+  const btn=$('new-admin-submit-btn');btn.disabled=true;btn.textContent='Création…';
+  try{
+    const r=await fetch('/.netlify/functions/admin-create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email,pushoverUserKey:pushoverKey})});
+    const d=await r.json();
+    if(!r.ok){err.textContent=d.error||'Erreur.';err.style.display='block';return;}
+    $('new-admin-result').style.display='block';
+    $('new-admin-result').innerHTML=`✅ Compte créé pour <strong>${d.email}</strong>.<br>Mot de passe temporaire (à transmettre en main propre — il ne sera plus affiché) :<br><span class="mono" style="font-size:16px;font-weight:700;color:var(--navy)">${d.tempPassword}</span>`;
+    $('new-admin-email').value='';$('new-admin-pushover').value='';
+    loadAdminsList();
+  }catch(e){
+    err.textContent='Erreur réseau.';err.style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Créer l\'administrateur';
+  }
+}
+
+async function resetAdminPassword(email){
+  if(!confirm(`Réinitialiser le mot de passe de ${email} ? Un nouveau mot de passe temporaire sera généré.`))return;
+  try{
+    const r=await fetch('/.netlify/functions/admin-reset-password',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email})});
+    const d=await r.json();
+    if(!r.ok){alert(d.error||'Erreur.');return;}
+    alert(`Nouveau mot de passe temporaire pour ${d.email} :\\n\\n${d.tempPassword}\\n\\nTransmettez-le en main propre — il ne sera plus affiché.`);
+    loadAdminsList();
+  }catch(e){alert('Erreur réseau.');}
+}
+
+async function changeOwnPassword(){
+  const current=$('settings-current-pwd').value;
+  const p1=$('settings-new-pwd1').value;
+  const p2=$('settings-new-pwd2').value;
+  const box=$('settings-pwd-result');box.style.display='none';
+  if(!current||!p1||!p2){box.className='error-msg';box.textContent='Tous les champs sont requis.';box.style.display='block';return;}
+  if(p1!==p2){box.className='error-msg';box.textContent='Les mots de passe ne correspondent pas.';box.style.display='block';return;}
+  try{
+    const r=await fetch('/.netlify/functions/admin-change-password',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({currentPassword:current,newPassword:p1})});
+    const d=await r.json();
+    if(!r.ok){box.className='error-msg';box.textContent=d.error||'Erreur.';box.style.display='block';return;}
+    AdminSession.token=d.token;
+    box.className='body';box.style.color='var(--green)';box.textContent='✅ Mot de passe mis à jour.';box.style.display='block';
+    $('settings-current-pwd').value='';$('settings-new-pwd1').value='';$('settings-new-pwd2').value='';
+  }catch(e){box.className='error-msg';box.textContent='Erreur réseau.';box.style.display='block';}
+}
+
+// ─── DASHBOARD ──────────────────────────────────────────────────────────────
 
 function normSt(s){
   return {ouverte:'ouverte','open':'ouverte',en_cours:'en_cours',active:'en_cours',
@@ -528,29 +979,61 @@ function toAtSt(s){
     closed:'fermee','fermée':'fermee',fermee:'fermee'}[s]||'ouverte';
 }
 
-async function atReq(table,method='GET',body=null,id='',qs=''){
-  // Calls the Netlify Functions proxy — the Airtable token lives ONLY server-side
-  // (Netlify env vars AIRTABLE_TOKEN / AIRTABLE_BASE_ID). Works identically for
-  // recruiter AND applicant browsers since both hit the same serverless endpoint.
-  // table and id are sent as SEPARATE params so the proxy can encode each segment
-  // individually — encoding "table/id" as one string turns "/" into "%2F" and
-  // silently breaks every PATCH / get-by-id request against Airtable.
-  const cleanQs=qs.startsWith('?')?qs.slice(1):qs;
-  let url='/.netlify/functions/airtable?table='+encodeURIComponent(table);
-  if(id)url+='&id='+encodeURIComponent(id);
-  if(cleanQs)url+='&qs='+encodeURIComponent(cleanQs);
-  const opts={method,headers:{'Content-Type':'application/json'}};
-  if(body){
-    if(method==='POST'||method==='PATCH')body.typecast=true;
-    opts.body=JSON.stringify(body);
+async function atGetSessions(pinFilter=null){
+  // pinFilter=null      → fetch ALL sessions (initial load, manual refresh, tab switch)
+  // pinFilter=[array]   → fetch ONLY those specific PINs (targeted 12s auto-refresh)
+  //   Filtering by explicit PIN (not by current status) means a session that just
+  //   transitioned ouverte/en_cours → terminée is still returned this cycle.
+  let sessQs='?maxRecords=200&sort[0][field]=Ouvert_le&sort[0][direction]=desc';
+  if(pinFilter&&pinFilter.length){
+    const formula='OR('+pinFilter.map(p=>"{PIN}='"+p.replace(/'/g,"\\'")+"'").join(',')+')';
+    sessQs='?filterByFormula='+encodeURIComponent(formula);
   }
-  try{
-    const r=await fetch(url,opts);
-    if(!r.ok){const err=await r.json().catch(()=>({error:{message:r.statusText}}));console.warn('Airtable HTTP error:',r.status,err?.error?.message||'');return null;}
-    const d=await r.json();
-    if(d.error){console.warn('Airtable API error:',d.error.type,d.error.message);return null;}
-    return d;
-  }catch(e){console.warn('Airtable proxy fetch error:',e.message);return null;}
+  const [sessR,resR]=await Promise.all([
+    atReq('Sessions','GET',null,'',sessQs),
+    atReq('Resultats','GET',null,'','?maxRecords=200')
+  ]);
+  if(!sessR?.records)return null;
+  const resMap={};
+  (resR?.records||[]).forEach(rec=>{
+    const pin=rec.fields.Session_PIN;
+    if(!pin)return;
+    resMap[pin]={
+      score:rec.fields.Score??null,
+      niveauLabel:rec.fields.Niveau_Detecte||null,
+      dureeReelle:rec.fields.Duree_sec||null,
+      bh:{AUT:rec.fields.Autonomie??null,PRO:rec.fields.Proactivite??null,PRE:rec.fields.Pression??null,RES:rec.fields.Responsabilite??null},
+      comment:rec.fields.Commentaire_Recruteur||'',
+      snapshot:rec.fields.Snapshot_JSON||null,
+      _resId:rec.id
+    };
+  });
+  return sessR.records.map(rec=>{
+    const pin=rec.fields.PIN;
+    const res=resMap[pin]||{};
+    return {
+      _id:rec.id,
+      pin,
+      nom:rec.fields.Nom||'',
+      prenom:rec.fields.Prenom||'',
+      profil:rec.fields.Profil||'',
+      duree:rec.fields.Duree_min||7,
+      nq:rec.fields.Nq||rec.fields.fldBKNQJzEDpCJbxc||(lsGetSessions().find(s=>s.pin===pin)||{}).nq||10,
+      allowPdf:rec.fields.PDF_Autorise!=='Non',  // single-select is always explicit — 'Non' is unambiguous, absent/other defaults to allowed
+      status:normSt(rec.fields.Statut||'ouverte'),
+      createdAt:rec.fields.Ouvert_le||new Date().toISOString(),
+      ...res
+    };
+  });
+}
+
+async function atCreateSession(s){
+  const r=await atReq('Sessions','POST',{fields:{
+    PIN:s.pin,Nom:s.nom,Prenom:s.prenom,Profil:s.profil,
+    Duree_min:s.duree,Nq:s.nq||10,PDF_Autorise:(s.allowPdf!==false)?'Oui':'Non',
+    Statut:'ouverte',Ouvert_le:new Date().toISOString()
+  }});
+  return r?.id||null;
 }
 
 async function atUpdateSession(id,fields){
@@ -582,259 +1065,582 @@ async function atSaveResult(res){
   return atReq('Resultats','POST',{fields});
 }
 
-function pickQuestions(profil,nqTotal=10){
-  const pool=getQuestionsPool();
-  const cfg=PROFILES[profil]||PROFILES.ASSOCIATE;
-  const eligible=pool.filter(q=>q.actif!==false&&q.pr.some(p=>cfg.pools.includes(p)));
-  const isTL=profil==='TEAM_LEADER';
+function lsGetSessions(){return CFG.get('sessions',[]);}
 
-  // ── Category pools ──────────────────────────────────────────────────────────
-  const bhPool   =shuf(eligible.filter(q=>q.bh));                          // comportemental
-  const calcOpen =shuf(eligible.filter(q=>q.calc&&q.tp==='o'&&!q.bh));    // calcul ouvert
-  const calcQcm  =shuf(eligible.filter(q=>q.calc&&q.tp!=='o'&&!q.bh));    // calcul QCM
-  const stdPool  =shuf(eligible.filter(q=>!q.calc&&!q.bh));               // QCM classique
-  const stdByLv  =[1,2,3,4].map(lv=>shuf(stdPool.filter(q=>q.lv===lv)));
+function lsSaveSessions(arr){CFG.set('sessions',arr);}
 
-  // ── Targets ─────────────────────────────────────────────────────────────────
-  // bigSession = ≥20 questions → enhanced behavioral rules apply
-  const bigSession=nqTotal>=20;
+function lsGetResults(){return CFG.get('results',[]);}
 
-  // ── Behavioral target ────────────────────────────────────────────────────────
-  // TL ≥20q : 35% behavioral (leadership assessment depth) + ALL 4 axes + 1-2 per axis
-  // TL <20q : 30% behavioral (as before), axes best-effort
-  // AS/SE ≥20q: 20% behavioral + ALL 4 axes guaranteed
-  // AS/SE <20q: 20% behavioral, axes best-effort (pool may be too small for 4)
-  let bhTarget;
-  if(bigSession){
-    bhTarget=isTL
-      ?Math.max(4,Math.round(nqTotal*0.35))   // TL ≥20q: 35%, min 4 (all axes)
-      :Math.max(4,Math.round(nqTotal*0.20));   // AS/SE ≥20q: 20%, min 4 (all axes)
-  } else {
-    bhTarget=Math.max(1,Math.min(isTL?4:3,Math.round(nqTotal*(isTL?0.3:0.2))));
-  }
+function lsSaveResult(r){const arr=lsGetResults();arr.push(r);CFG.set('results',arr);}
 
-  // Calcul total: 30% for Associate/Senior (min 3), 0 for TL
-  const calcTarget=isTL?0:Math.max(3,Math.round(nqTotal*0.3));
-  // Within calcul: at least 1 open, proportional for big sessions
-  const openTarget=isTL?0:Math.max(1,Math.min(bigSession?3:2,Math.round(nqTotal*0.1)));
-
-  const selected=[];
-
-  // ── 1. Behavioral ────────────────────────────────────────────────────────────
-  // ALL 4 axes (AUT/PRO/PRE/RES) must be represented in big sessions
-  const ALL_AXES=['AUT','PRO','PRE','RES'];
-  const axesSeen=new Set();
-  // Pass 1a: one question per axis — guarantees coverage of all 4 axes
-  for(const ax of ALL_AXES){
-    const cands=bhPool.filter(q=>q.bh===ax);
-    if(cands.length>0&&!axesSeen.has(ax)){
-      selected.push(cands[0]);
-      axesSeen.add(ax);
-    }
-  }
-  // Pass 1b (TL big session only): add a 2nd question per axis for depth (round-robin)
-  if(bigSession&&isTL){
-    for(const ax of ALL_AXES){
-      if(selected.filter(x=>x.bh).length>=bhTarget)break;
-      const cands=bhPool.filter(q=>q.bh===ax&&!selected.includes(q));
-      if(cands.length>0)selected.push(cands[0]);
-    }
-  }
-  // Pass 2: fill remaining slots to bhTarget with any behavioral (axes already covered)
-  for(const q of bhPool){
-    if(selected.filter(x=>x.bh).length>=bhTarget)break;
-    if(!selected.includes(q))selected.push(q);
-  }
-
-  // ── 2. Open calcul questions (core of technical evaluation) ─────────────────
-  for(const q of calcOpen){
-    if(selected.filter(x=>x.calc&&x.tp==='o').length>=openTarget)break;
-    if(!selected.includes(q))selected.push(q);
-  }
-
-  // ── 3. QCM calcul (remaining calcul slots) ──────────────────────────────────
-  for(const q of calcQcm){
-    if(selected.filter(x=>x.calc).length>=calcTarget)break;
-    if(!selected.includes(q))selected.push(q);
-  }
-
-  // ── 4. Standard QCM by level (fill remaining slots) ─────────────────────────
-  const remaining=nqTotal-selected.length;
-  const totalBase=cfg.dist.reduce((a,b)=>a+b,0)||10;
-  cfg.dist.forEach((count,i)=>{
-    const scaled=Math.max(0,Math.round(count*remaining/totalBase));
-    if(scaled>0&&stdByLv[i].length>0){
-      const toAdd=stdByLv[i].filter(q=>!selected.includes(q)).slice(0,scaled);
-      selected.push(...toAdd);
-    }
+async function loadSessions(){
+  const at=await atGetSessions(); // full fetch (no pinFilter)
+  if(at){State.sessions=at;return State.sessions;}
+  const ls=lsGetSessions();
+  const res=lsGetResults();
+  const resMap={};res.forEach(r=>resMap[r.pin]=r);
+  State.sessions=ls.map(s=>{
+    const r=resMap[s.pin];
+    if(!r)return s;
+    return {...s,...r,status:'done',snapshot:r.snapshot||s.snapshot,bh:r.bh||s.bh};
   });
+  return State.sessions;
+}
 
-  // ── 5. Top-up if short ───────────────────────────────────────────────────────
-  while(selected.length<nqTotal){
-    const rem=shuf(eligible.filter(q=>!selected.includes(q)));
-    if(rem.length)selected.push(rem[0]);else break;
+async function saveNewSession(s){
+  const atId=await atCreateSession(s);
+  if(atId) s._id=atId;  // Store Airtable record ID for subsequent updates
+  // Always save to localStorage as offline backup
+  const arr=lsGetSessions();
+  const existIdx=arr.findIndex(x=>x.pin===s.pin);
+  if(existIdx>=0) arr[existIdx]=s; else arr.unshift(s);
+  lsSaveSessions(arr);
+  return s;
+}
+
+function switchTab(t){
+  ['sessions','new','settings','questions'].forEach(n=>{
+    $('tab-'+n)?.classList.toggle('active',n===t);
+    $('nav-'+n)?.classList.toggle('active',n===t);
+  });
+  if(t==='sessions'){loadAndRender();startAutoRefresh();}else{stopAutoRefresh();}
+  if(t==='questions'){QA_PAGE=0;renderQAdmin();}
+  if(t==='settings')loadSettings();
+  if(t==='new'){$('pin-result').style.display='none';$('new-err').style.display='none';$('new-nom').value='';$('new-prenom').value='';$('new-profil').value='';$('new-duree').value=CFG.get('default_duree',7);$('new-nq').value=CFG.get('default_nq',10);}
+}
+
+function startAutoRefresh(){stopAutoRefresh();State.refreshId=setInterval(refreshActiveRows,12000);}
+
+function stopAutoRefresh(){if(State.refreshId){clearInterval(State.refreshId);State.refreshId=null;}}
+
+async function loadAndRender(){
+  $('sessions-tbody').innerHTML='<tr><td colspan="9" class="table-empty">Chargement…</td></tr>';
+  await loadSessions();
+  renderSessions();
+  const lr=$('last-refresh');if(lr)lr.textContent='Mis à jour : '+new Date().toLocaleTimeString('fr-FR');
+}
+
+function resetSessionFilters(){
+  const flds=['sf-name','sf-profil','sf-status','sf-from','sf-to'];
+  flds.forEach(id=>{const el=$(id);if(el){el.value='';}});
+  renderSessions();
+}
+
+function sessionRowHtml(s){
+  const sts=statusBadge(s.status);
+  const isTimedOut=s.timedOut||(normSt(s.status)==='done'&&s.dureeReelle&&s.duree&&s.answeredCount<s.totalCount);
+  const score=s.score!=null?`<span style="font-weight:700;color:var(--navy)">${s.score}/20</span>`:'—';
+  const dur=s.dureeReelle?fmt(s.dureeReelle):'—';
+  const date=s.createdAt?new Date(s.createdAt).toLocaleDateString('fr-FR'):'—';
+  const hasDone=normSt(s.status)==='done'||(s.score!=null&&s.snapshot);
+  const actions=(hasDone
+    ?('<button class="btn btn-ghost btn-sm btn-icon" onclick=\'showResult("'+s.pin+'")\' title="Voir résultats">📊</button>'
+      +'<button class="btn btn-ghost btn-sm btn-icon" onclick=\'adminPDF("'+s.pin+'")\' title="Télécharger PDF correction">📥</button>')
+    :'')
+    +(normSt(s.status)==='ouverte'
+      ?'<button class="btn btn-danger btn-sm btn-icon" onclick=\'closeSession("'+s.pin+'")\' title="Fermer session">🔒</button>'
+      :'');
+  let bhCell='<span style="color:var(--t3);font-size:12px">—</span>';
+  if(s.bh&&Object.values(s.bh).some(v=>v!=null)){
+    const bh=s.bh;
+    bhCell=['AUT','PRO','PRE','RES'].map(k=>{
+      const v=bh[k];if(v==null)return`<span style="color:var(--t3);font-size:10px" title="${BH_LABELS[k]}: non évalué">·</span>`;
+      const c=v>=7?'var(--green)':v>=4?'var(--gold)':'var(--red)';
+      return`<span title="${BH_LABELS[k]}: ${v}/10" style="font-size:11px;font-weight:700;color:${c};cursor:default">${k[0]}${k.slice(1,3).toLowerCase()}:${v}</span>`;
+    }).join('<br>');
   }
-
-  return shuf(selected.slice(0,nqTotal));
+  return `<tr data-pin="${s.pin}">
+      <td><strong>${s.prenom} ${s.nom}</strong></td>
+      <td>${profilBadge(s.profil)}</td>
+      <td><span class="mono" style="font-size:15px;font-weight:700;letter-spacing:.1em;color:var(--navy)">${s.pin}</span><br><span style="font-size:11px;color:var(--t3)">${s.nq||10}Q · ${s.duree}min</span></td>
+      <td>${sts}${isTimedOut?'<br><span class="badge-timeout">⏱ Temps écoulé</span>':''}</td>
+      <td>${score}</td>
+      <td style="line-height:1.6">${bhCell}</td>
+      <td>${dur}</td>
+      <td>${date}</td>
+      <td><div class="actions">${actions}</div></td>
+    </tr>`;
 }
 
-function setCandStep(step){
-  const steps=['pin','verify','instructions','quiz','results'];
-  const idx=steps.indexOf(step);
-  steps.forEach((s,i)=>{$(`cp-${s}`)?.classList.toggle('active',s===step);});
-  for(let i=1;i<=5;i++){
-    const el=$(`step-${i}`);const sl=$(`sl-${i}`);
-    if(!el)continue;
-    el.classList.toggle('done',i<idx+1);
-    el.classList.toggle('active',i===idx+1);
-    if(sl)sl.classList.toggle('done',i<=idx);
-  }
+function filteredSessions(){
+  const all=State.sessions;
+  const fname=($('sf-name')?.value||'').toLowerCase().trim();
+  const fprofil=$('sf-profil')?.value||'';
+  const fstatus=$('sf-status')?.value||'';
+  const ffrom=$('sf-from')?.value||'';
+  const fto=$('sf-to')?.value||'';
+  const sessions=all.filter(s=>{
+    if(fname&&!(s.nom||'').toLowerCase().includes(fname)&&!(s.prenom||'').toLowerCase().includes(fname))return false;
+    if(fprofil&&s.profil!==fprofil)return false;
+    if(fstatus&&normSt(s.status)!==fstatus)return false;
+    if(ffrom&&s.createdAt&&s.createdAt.slice(0,10)<ffrom)return false;
+    if(fto&&s.createdAt&&s.createdAt.slice(0,10)>fto)return false;
+    return true;
+  });
+  const isFiltered=!!(fname||fprofil||fstatus||ffrom||fto);
+  return {sessions,all,isFiltered};
 }
 
-async function verifyPIN(){
-  const pin=$('pin-input').value.trim().toUpperCase();
-  if(pin.length!==6){$('pin-err').textContent='Veuillez entrer un code PIN de 6 caractères.';$('pin-err').style.display='block';return;}
-  $('pin-err').textContent='Recherche en cours…';$('pin-err').style.display='block';
-  let session=await findSessionByPin(pin);
-  if(!session||normSt(session.status)!=='ouverte'){
-    // Offline/same-browser fallback (dev convenience — normal path is Airtable above)
-    const ls=lsGetSessions().find(s=>s.pin===pin&&normSt(s.status)==='ouverte');
-    if(!ls){$('pin-err').textContent='Code PIN invalide ou session non disponible. Contactez votre recruteur.';return;}
-    session=ls;
-  }
-  $('pin-err').style.display='none';
-  State.cand.session=session;
-  $('vfy-prenom').textContent=session.prenom;
-  $('vfy-nom').textContent=session.nom;
-  $('vfy-profil').textContent=profileLabel(session.profil);
-  $('vfy-duree').textContent=session.duree+' minutes · '+(session.nq||10)+' questions';
-  setCandStep('verify');
+function updateStatCards(){
+  const {sessions,all,isFiltered}=filteredSessions();
+  const open=sessions.filter(s=>normSt(s.status)==='ouverte').length;
+  const active=sessions.filter(s=>normSt(s.status)==='en_cours').length;
+  const done=sessions.filter(s=>normSt(s.status)==='done').length;
+  const scores=sessions.filter(s=>s.score!=null).map(s=>parseFloat(s.score));
+  const avg=scores.length?((scores.reduce((a,b)=>a+b,0)/scores.length).toFixed(1)):null;
+  $('stat-total').textContent=sessions.length+(isFiltered?` / ${all.length}`:'');
+  $('stat-open').textContent=open+active;
+  $('stat-done').textContent=done;
+  $('stat-avg').textContent=avg?avg+'/20':'—';
+  return {sessions,isFiltered};
 }
 
-function confirmIdentity(){
-  const sess=State.cand.session;
-  $('instr-duree').textContent=sess.duree+' minutes';
-  document.querySelectorAll('.instr-nq').forEach(el=>el.textContent=(sess.nq||10)+' questions');
-  $('consent-check').checked=false;
-  $('start-quiz-btn').disabled=true;
-  setCandStep('instructions');
-}
-
-function startQuiz(){
-  const session=State.cand.session;
-  const nq=parseInt(session.nq)||parseInt(CFG.get('default_nq',10))||10;
-  const qs=pickQuestions(session.profil,nq);
-  State.cand.qs=qs;State.cand.ci=0;State.cand.ans=[];
-  State.cand.remaining=session.duree*60;
-  State.cand.started=Date.now();
-  $('quiz-user-label').textContent=session.prenom+' '+session.nom;
-  // Update session status
-  const arr=lsGetSessions();const idx=arr.findIndex(x=>x.pin===session.pin);
-  if(idx>=0){arr[idx].status='en_cours';arr[idx]._id=session._id||arr[idx]._id;lsSaveSessions(arr);}
-  if(!!session._id)atUpdateSession(session._id,{Statut:'en_cours'});
-  setCandStep('quiz');
-  renderQuestion();
-  startTimer();
-}
-
-function startTimer(){
-  clearInterval(State.cand.timerID);
-  updateTimer();
-  State.cand.timerID=setInterval(()=>{State.cand.remaining--;updateTimer();if(State.cand.remaining<=0){clearInterval(State.cand.timerID);finishQuiz(true);}},1000);
-}
-
-function updateTimer(){
-  const r=State.cand.remaining,total=State.cand.session.duree*60;
-  const pct=r/total;const offset=163*(1-pct);
-  const ring=$('timer-ring');const txt=$('timer-text');
-  $('timer-text').textContent=fmt(r);
-  const isWarn=r<=120,isDanger=r<=60;
-  ring.style.strokeDashoffset=offset;
-  ring.className='timer-ring'+(isDanger?' danger':isWarn?' warn':'');
-  txt.className='timer-text'+(isDanger?' danger':isWarn?' warn':'');
-}
-
-function renderQuestion(){
-  const q=State.cand.qs[State.cand.ci],i=State.cand.ci,tot=State.cand.qs.length;
-  const pct=Math.round(i/tot*100);
-  $('q-progress-lbl').textContent=`Question ${i+1} / ${State.cand.qs.length}`;
-  $('q-pct').textContent=pct+'%';
-  $('q-progress').style.width=pct+'%';
-  const lvKey='l'+q.lv;const lvStyle=LV_PILLS[lvKey]||{bg:'#F1F5F9',c:'#64748B'};
-  let html=`<div class="q-meta"><span class="q-num">Q${i+1}</span>
-    <span class="badge" style="background:${lvStyle.bg};color:${lvStyle.c}">${LEVELS[q.lv]}</span>
-  </div>
-  <div class="q-text">${q.q}</div>`;
-  if(q.tp==='m')html+=`<div class="multi-hint">☑ Plusieurs réponses possibles</div>`;
-  if(q.tp==='o')html+=`<div class="open-hint">✍ Question ouverte — développez votre réponse</div>`;
-  if(q.tp==='o'){
-    html+=`<textarea class="open-answer" id="open-ans" placeholder="Développez votre réponse ici…"></textarea>`;
-  } else {
-    html+=`<div class="options">`;
-    q.opts.forEach((opt,oi)=>{
-      const isM=q.tp==='m';
-      html+=`<div class="option" data-idx="${oi}" onclick="selectOpt(this,${isM})">
-        <div class="opt-mk${isM?' sq':''}"></div>
-        <div class="opt-txt">${opt}</div>
-      </div>`;
-    });
-    html+=`</div>`;
-  }
-  $('quiz-question-area').innerHTML=html;
-  // Reset validate button state for new question
-  const vb=$('validate-btn');
-  if(vb) vb.disabled=true;
-  // For open questions: enable when text entered
-  if(q.tp==='o'){
-    const ta=$('open-ans');
-    if(ta) ta.addEventListener('input',()=>{
-      const vb2=$('validate-btn');
-      if(vb2) vb2.disabled=(ta.value.trim().length<2);
-    });
-  }
-}
-
-function selectOpt(el,multi){
-  if(!multi)document.querySelectorAll('.option').forEach(o=>o.classList.remove('selected'));
-  el.classList.toggle('selected');
-  if(!multi&&!el.classList.contains('selected'))el.classList.add('selected');
-  // Enable validate button when something selected
-  const vb=$('validate-btn');if(vb)vb.disabled=false;
-}
-
-function validateQuestion(){
-  const q=State.cand.qs[State.cand.ci];
-  const selected=getSelected();
-  const openText=q.tp==='o'?($('open-ans')?.value||''):'';
-  // Require selection for QCM questions
-  if(q.tp!=='o'&&selected.length===0){
-    const em=$('q-error-msg');if(em)em.style.display='block';
+function renderSessions(){
+  const {sessions,isFiltered}=updateStatCards();
+  if(!sessions.length){
+    $('sessions-tbody').innerHTML='<tr><td colspan="9" class="table-empty">'+(isFiltered?'Aucun résultat pour ces filtres.':"Aucun candidat — créez une session.")+'</td></tr>';
     return;
   }
-  const em=$('q-error-msg');if(em)em.style.display='none';
-  const sc=calcScore(q,selected);
-  const bhW=q.bh&&q.bw&&selected.length>0?q.bw[selected[0]]||0:null;
-  State.cand.ans.push({q,selected,openText,score:sc,bhVal:bhW,skipped:false});
-  nextQ();
+  $('sessions-tbody').innerHTML=sessions.map(sessionRowHtml).join('');
 }
 
-function nextQ(){State.cand.ci++;if(State.cand.ci>=State.cand.qs.length)finishQuiz();else renderQuestion();}
-
-function calcScore(q,sel){
-  if(sel.length===0)return 0;
-  if(q.tp==='o')return 0;
-  if(q.tp==='s')return sel[0]===q.cor[0]?2:-1;
-  let pts=0;const n=q.cor.length;
-  sel.forEach(i=>{pts+=q.cor.includes(i)?(2/n):-1;});
-  return parseFloat(Math.max(0,Math.min(2,pts)).toFixed(2));
+async function refreshActiveRows(){
+  // Sessions we're currently tracking as "still moving" — includes any session
+  // that COULD change (ouverte/en_cours). We re-fetch these specific PINs so that
+  // a candidate finishing their quiz (→ terminée) IS still picked up this cycle.
+  const trackedPins=State.sessions
+    .filter(s=>normSt(s.status)==='ouverte'||normSt(s.status)==='en_cours')
+    .map(s=>s.pin);
+  if(!trackedPins.length){
+    const lr=$('last-refresh');if(lr)lr.textContent='Mis à jour : '+new Date().toLocaleTimeString('fr-FR');
+    return; // nothing active to poll — avoid a pointless network call
+  }
+  const updated=await atGetSessions(trackedPins);
+  if(!updated){return;} // proxy/network hiccup — silently skip this cycle
+  // Merge updated records into State.sessions (by PIN)
+  updated.forEach(u=>{
+    const idx=State.sessions.findIndex(s=>s.pin===u.pin);
+    if(idx>=0)State.sessions[idx]={...State.sessions[idx],...u};
+    else State.sessions.unshift(u);
+  });
+  // Recompute stat cards (cheap) then patch ONLY the affected DOM rows
+  const {sessions:visible}=updateStatCards();
+  const visiblePins=new Set(visible.map(s=>s.pin));
+  updated.forEach(u=>{
+    const tr=document.querySelector('tr[data-pin="'+u.pin+'"]');
+    if(!visiblePins.has(u.pin)){tr?.remove();return;} // filtered out now
+    const html=sessionRowHtml(State.sessions.find(s=>s.pin===u.pin));
+    if(tr){tr.outerHTML=html;}
+    else{
+      // Row wasn't rendered before (e.g. table was showing "Aucun candidat") — do a full render once
+      renderSessions();
+    }
+  });
+  const lr=$('last-refresh');if(lr)lr.textContent='Mis à jour : '+new Date().toLocaleTimeString('fr-FR');
 }
 
-function calcBehavioral(answers){
-  const axes={AUT:{sum:0,n:0},PRO:{sum:0,n:0},PRE:{sum:0,n:0},RES:{sum:0,n:0}};
-  answers.forEach(a=>{if(a.q.bh&&a.bhVal!=null){const ax=axes[a.q.bh];if(ax){ax.sum+=a.bhVal;ax.n++;}}});
-  const res={};
-  for(const[k,v]of Object.entries(axes)){res[k]=v.n>0?Math.round((v.sum/(v.n*3))*10):null;}
-  return res;
+function statusBadge(st){
+  const ns=normSt(st);
+  if(ns==='ouverte')return'<span class="st-open"><span class="status-dot"></span>Ouverte</span>';
+  if(ns==='en_cours')return'<span class="st-active"><span class="status-dot"></span>En cours</span>';
+  if(ns==='done')return'<span class="st-done"><span class="status-dot"></span>Terminée</span>';
+  return'<span class="st-closed"><span class="status-dot"></span>Fermée</span>';
+}
+
+function profilBadge(p){
+  const cls={ASSOCIATE:'badge-teal',SENIOR:'badge-indigo',TEAM_LEADER:'badge-gold'};
+  return`<span class="badge ${cls[p]||'badge-gray'}">${profileLabel(p)}</span>`;
+}
+
+async function createSession(){
+  const nom=$('new-nom').value.trim(),prenom=$('new-prenom').value.trim(),profil=$('new-profil').value,duree=parseInt($('new-duree').value)||7,nq=parseInt($('new-nq').value)||10;
+  if(!nom||!prenom||!profil){$('new-err').textContent='Veuillez remplir tous les champs.';$('new-err').style.display='block';return;}
+  $('new-err').style.display='none';
+  const pin=genPIN();
+  const allowPdf=CFG.get('allow_candidate_pdf',true);
+  const s={pin,nom,prenom,profil,duree,nq,allowPdf,status:'ouverte',score:null,createdAt:new Date().toISOString()};
+  await saveNewSession(s);
+  State.sessions.unshift(s);
+  $('pin-display').textContent=pin;
+  $('pin-result').style.display='block';
+  State.currentSession=s;
+}
+
+function copyPIN(){
+  const pin=State.currentSession?.pin;
+  if(pin)navigator.clipboard.writeText(pin).then(()=>alert('PIN copié : '+pin));
+}
+
+function showResult(pin){
+  const s=State.sessions.find(x=>x.pin===pin);
+  if(!s||s.score==null){alert('Résultats non disponibles.');return;}
+  $('modal-title').textContent=`${s.prenom} ${s.nom} — ${profileLabel(s.profil)}`;
+  let snap=null;
+  try{snap=JSON.parse(s.snapshot||'null');}catch{}
+  const lvKey=getLevelKey(s.score);
+  const lvStyle=LV_PILLS[lvKey]||{bg:'#F1F5F9',c:'#64748B'};
+  let html=`
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:36px;font-weight:700;color:var(--navy);margin-bottom:4px">${s.score}<span style="font-size:18px;color:var(--t3)">/20</span></div>
+      <span class="badge" style="background:${lvStyle.bg};color:${lvStyle.c}">${s.niveauLabel||'—'}</span>
+      ${s.dureeReelle?`<div class="small" style="margin-top:6px">Durée : ${fmt(s.dureeReelle)}</div>`:''}
+    </div>`;
+  // ── INDICATEURS COMPORTEMENTAUX ──────────────────────────────────────────────
+  html+=`<div style="margin-bottom:20px">
+    <div class="h3" style="margin-bottom:4px">Indicateurs comportementaux</div>
+    <p style="font-size:13px;color:var(--t2);margin-bottom:10px">Issus des questions comportementales incluses dans l'évaluation.</p>
+    <div style="background:var(--gold-bg);border-left:3px solid var(--gold);border-radius:var(--rs);padding:8px 12px;font-size:12px;color:#92400E;margin-bottom:14px">
+      ⚠️ Ces indicateurs sont des <strong>tendances</strong>, non des mesures absolues. Ils orientent le questionnement en entretien et <strong>ne constituent pas un critère de décision</strong>. Évaluez-les au regard du poste et du contexte.
+    </div>`;
+  const bhData=s.bh||{AUT:null,PRO:null,PRE:null,RES:null};
+  for(const k of['AUT','PRO','PRE','RES']){
+    const v=bhData[k];
+    const itp=BH_INTERPRET[k];
+    const col=BH_COLORS[k];
+    const pct=v!=null?v*10:0;
+    const lvIdx=v==null?-1:(v<=3?0:v<=6?1:2);
+    const lvText=lvIdx>=0?itp.lv[lvIdx]:'Non évalué — axe non couvert par les questions tirées';
+    const valDisplay=v!=null?`<span style="font-size:18px;font-weight:700;color:${col}">${v}</span><span style="font-size:11px;color:var(--t3)">/10</span>`:`<span style="font-size:13px;color:var(--t3)">—</span>`;
+    html+=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--t1);margin-bottom:2px">${BH_ICONS[k]} ${itp.label}</div>
+          <div style="font-size:12px;color:var(--t2)">${itp.desc}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:16px">${valDisplay}</div>
+      </div>
+      <div style="height:8px;background:var(--border);border-radius:99px;margin-bottom:8px">
+        <div style="height:8px;width:${pct}%;background:${col};border-radius:99px;transition:width 1s ease"></div>
+      </div>
+      <div style="font-size:12px;padding:5px 10px;border-radius:var(--rs);background:${v==null?'var(--surface)':'var(--surface)'};color:${v==null?'var(--t3)':v<=3?'var(--red)':v<=6?'var(--gold)':'var(--green)'};font-style:${v==null?'italic':'normal'}">
+        ${lvText}
+      </div>
+    </div>`;
+  }
+  html+=`<div style="font-size:11px;color:var(--t3);text-align:right;margin-top:4px">
+    Questions comportementales évaluées : ${Object.values(bhData).filter(v=>v!=null).length} axe(s) / 4
+  </div></div>`;
+  // Comment
+  html+=`<div class="h3" style="margin-bottom:8px">Commentaire recruteur</div>
+  <textarea class="comment-area" id="admin-comment" placeholder="Vos notes et observations sur ce candidat…">${s.comment||''}</textarea>
+  <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveComment('${pin}')">Enregistrer le commentaire</button>
+  <div class="divider"></div>`;
+  // Correction
+  if(snap&&snap.length){
+    html+=`<div class="h3" style="margin-bottom:12px">Correction détaillée</div>`;
+    snap.forEach((a,i)=>{
+      const isOpen=a.q.tp==='o';
+      const skipped=!a.selected||a.selected.length===0;
+      let cls='skipped',icon='⬜',pts='—';
+      if(!skipped){
+        if(isOpen){cls='open';icon='📝';pts='Ouvert';}
+        else if(a.score===2){cls='correct';icon='✅';pts='+2 pts';}
+        else if(a.score>0){cls='partial';icon='🟡';pts=`+${a.score} pt`;}
+        else{cls='wrong';icon='❌';pts='-1 pt';}
+      }
+      html+=`<div class="corr-q">
+        <div class="corr-header ${cls}">${icon} Q${i+1} · <span class="badge badge-l${a.q.lv}" style="margin-left:4px">${LEVELS[a.q.lv]}</span><span style="margin-left:auto">${pts}</span></div>
+        <div class="corr-body">
+          <div class="corr-qtext">${a.q.q}</div>`;
+      if(!isOpen&&a.q.opts){
+        a.q.opts.forEach((opt,oi)=>{
+          const isCor=a.q.cor?.includes(oi);
+          const isSel=a.selected?.includes(oi);
+          let cls2=isCor?'correct-opt':(isSel&&!isCor)?'wrong-opt':'';
+          const icon2=isCor?'✓':(isSel&&!isCor)?'✗':'·';
+          html+=`<div class="corr-opt ${cls2}">${icon2} ${opt}</div>`;
+        });
+        if(!skipped){const selOpts=a.selected?.map(i=>a.q.opts[i]).join(', ');html+=`<div class="corr-cand">Réponse candidat : ${selOpts||'(aucune)'}</div>`;}
+      } else if(isOpen&&a.openText){
+        html+=`<div class="corr-cand">Réponse candidat : ${a.openText}</div>`;
+      }
+      if(a.q.ex){html+=`<div class="corr-ex">💡 ${a.q.ex}</div>`;}
+      html+=`</div></div>`;
+    });
+  }
+  $('modal-content').innerHTML=html;
+  $('result-modal').classList.add('open');
+}
+
+function closeModal(){$('result-modal').classList.remove('open');}
+
+function saveComment(pin){
+  const txt=$('admin-comment')?.value||'';
+  const arr=lsGetSessions();const idx=arr.findIndex(x=>x.pin===pin);
+  if(idx>=0){arr[idx].comment=txt;lsSaveSessions(arr);}
+  const si=State.sessions.findIndex(x=>x.pin===pin);
+  if(si>=0)State.sessions[si].comment=txt;
+  alert('Commentaire enregistré.');
+}
+
+function loadSettings(){
+  $('cfg-duree').value=CFG.get('default_duree',7);
+  $('cfg-nq').value=CFG.get('default_nq',10);
+  $('cfg-allow-pdf').checked=CFG.get('allow_candidate_pdf',true);
+}
+
+function saveDefaults(){CFG.set('default_duree',parseInt($('cfg-duree').value)||7);CFG.set('default_nq',parseInt($('cfg-nq').value)||10);CFG.set('allow_candidate_pdf',$('cfg-allow-pdf').checked);alert('Paramètres enregistrés.');}
+
+function exportCSV(){
+  const fname=($('sf-name')?.value||'').toLowerCase().trim();
+  const fprofil=$('sf-profil')?.value||'';
+  const fstatus=$('sf-status')?.value||'';
+  const ffrom=$('sf-from')?.value||'';
+  const fto=$('sf-to')?.value||'';
+  const sessions=State.sessions.filter(s=>{
+    if(fname&&!(s.nom||'').toLowerCase().includes(fname)&&!(s.prenom||'').toLowerCase().includes(fname))return false;
+    if(fprofil&&s.profil!==fprofil)return false;
+    if(fstatus&&normSt(s.status)!==fstatus)return false;
+    if(ffrom&&s.createdAt&&s.createdAt.slice(0,10)<ffrom)return false;
+    if(fto&&s.createdAt&&s.createdAt.slice(0,10)>fto)return false;
+    return true;
+  });
+  const header=['Prenom','Nom','Poste','PIN','Statut','Score_20','Niveau','Duree_sec','Q_Repondues','Q_Total','Temps_Ecoule','AUT','PRO','PRE','RES','NQ_Alloue','Duree_min','Date'];
+  const rows=[header];
+  sessions.forEach(s=>{
+    const bh=s.bh||{};
+    rows.push([
+      s.prenom,s.nom,profileLabel(s.profil),s.pin,normSt(s.status),
+      s.score!=null?s.score:'',s.niveauLabel||'',s.dureeReelle||'',
+      s.answeredCount!=null?s.answeredCount:'',s.totalCount!=null?s.totalCount:'',
+      s.timedOut?'Oui':'Non',
+      bh.AUT!=null?bh.AUT:'',bh.PRO!=null?bh.PRO:'',bh.PRE!=null?bh.PRE:'',bh.RES!=null?bh.RES:'',
+      s.nq||'',s.duree||'',s.createdAt||''
+    ]);
+  });
+  const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);
+  a.download='payrollassess_resultats.csv';a.click();
+}
+
+async function closeSession(pin){
+  const s=State.sessions.find(x=>x.pin===pin);
+  if(!s)return;
+  if(!!s._id){await atUpdateSession(s._id,{Statut:'fermee'});}
+  const arr=lsGetSessions();
+  const idx=arr.findIndex(x=>x.pin===pin);
+  if(idx>=0){arr[idx].status='closed';lsSaveSessions(arr);}
+  await loadSessions();renderSessions();
+}
+
+function adminPDF(pin){
+  const session=State.sessions.find(x=>x.pin===pin);
+  if(!session)return;
+  let snap=null;try{snap=JSON.parse(session.snapshot||'null');}catch{}
+  if(!snap){alert('Correction non disponible.');return;}
+  // Temporarily set cand state to use same PDF function
+  const saved=State.cand.session;
+  State.cand.session=session;State.cand.ans=snap.map(a=>({...a,q:a.q}));
+  downloadCandidatePDF();
+  State.cand.session=saved;
+}
+
+function getQuestionsPool(){
+  const ov=CFG.get('qa_overrides',null);
+  return ov?ov:[...QUESTIONS];
+}
+
+function saveQuestionsPool(arr){
+  CFG.set('qa_overrides',arr);
+}
+
+function resetQuestionsToDefault(){
+  if(!confirm('Réinitialiser toutes les questions aux valeurs d\'origine ? Les modifications seront perdues.'))return;
+  CFG.set('qa_overrides',null);
+  renderQAdmin();
+  alert('Pool de questions réinitialisé.');
+}
+
+function renderQAdmin(){
+  const pool=getQuestionsPool();
+  const search=($('qf-search')?.value||'').toLowerCase();
+  const fProfil=$('qf-profil')?.value||'';
+  const fNiveau=$('qf-niveau')?.value||'';
+  const fType=$('qf-type')?.value||'';
+  const fBh=$('qf-bh')?.value||'';
+
+  const filtered=pool.filter(q=>{
+    if(fProfil&&!q.pr.includes(fProfil))return false;
+    if(fNiveau&&String(q.lv)!==fNiveau)return false;
+    if(fType&&q.tp!==fType)return false;
+    if(fBh==='none'&&q.bh)return false;
+    if(fBh&&fBh!=='none'&&q.bh!==fBh)return false;
+    if(search&&!(q.q.toLowerCase().includes(search)||q.id.toLowerCase().includes(search)))return false;
+    return true;
+  });
+
+  $('q-count-lbl').textContent=`${filtered.length} / ${pool.length} questions`;
+  // Clamp page if filters reduced results
+  const totalPgs2=Math.max(1,Math.ceil(filtered.length/QA_PER_PAGE));
+  if(QA_PAGE>=totalPgs2)QA_PAGE=totalPgs2-1;
+  const paged=filtered.slice(QA_PAGE*QA_PER_PAGE,(QA_PAGE+1)*QA_PER_PAGE);
+
+  if(!paged.length){
+    $('q-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Aucune question correspondante</td></tr>';
+    $('q-pagination').innerHTML='';return;
+  }
+
+  const profColors={ALL:'badge-gray',ASSOCIATE:'badge-teal',SENIOR:'badge-indigo',TEAM_LEADER:'badge-gold'};
+  const typeLabel={s:'QCM·S',m:'QCM·M',o:'Ouverte'};
+  const lvColors={1:'l1',2:'l2',3:'l3',4:'l4'};
+  const bhLabel={AUT:'AUT',PRO:'PRO',PRE:'PRE',RES:'RES'};
+
+  $('q-tbody').innerHTML=paged.map(q=>{
+    const prBadges=q.pr.map(p=>`<span class="badge ${profColors[p]||'badge-gray'}" style="font-size:10px">${p}</span>`).join(' ');
+    const qTxt=q.q.length>80?q.q.slice(0,80)+'…':q.q;
+    const inactive=q.actif===false?'opacity:.45':'';
+    return `<tr style="${inactive}">
+      <td><span class="mono" style="font-size:11px;color:var(--navy)">${q.id}</span></td>
+      <td><span class="badge badge-${lvColors[q.lv]}">${q.lv}</span></td>
+      <td><span style="font-size:11px;color:var(--t2)">${typeLabel[q.tp]||q.tp}</span></td>
+      <td>${prBadges}</td>
+      <td style="font-size:13px;max-width:320px">${qTxt}</td>
+      <td>${q.bh?`<span class="badge badge-gold" style="font-size:10px">${bhLabel[q.bh]}</span>`:'—'}</td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm btn-icon" onclick='openQEditor("${q.id}")' title="Modifier">✏️</button>
+        <button class="btn btn-ghost btn-sm btn-icon" onclick='toggleQActive("${q.id}")' title="${q.actif===false?'Activer':'Désactiver'}">${q.actif===false?'👁':'🚫'}</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick='deleteQ("${q.id}")' title="Supprimer">🗑</button>
+      </div></td>
+    </tr>`;
+  }).join('');
+
+  // Pagination
+  const totalPgs=Math.ceil(filtered.length/QA_PER_PAGE);
+  if(totalPgs>1){
+    $('q-pagination').innerHTML=`
+      <span>Page ${QA_PAGE+1} / ${totalPgs}</span>
+      <div style="display:flex;gap:6px">
+        ${QA_PAGE>0?`<button class="btn btn-ghost btn-sm" onclick="QA_PAGE--;renderQAdmin()">← Précédent</button>`:''}
+        ${QA_PAGE<totalPgs-1?`<button class="btn btn-ghost btn-sm" onclick="QA_PAGE++;renderQAdmin()">Suivant →</button>`:''}
+      </div>`;
+  } else {$('q-pagination').innerHTML='';}
+}
+
+function toggleQActive(id){
+  const pool=getQuestionsPool();
+  const q=pool.find(x=>x.id===id);
+  if(!q)return;
+  q.actif=q.actif===false?true:false;
+  saveQuestionsPool(pool);renderQAdmin();
+}
+
+function deleteQ(id){
+  if(!confirm(`Supprimer la question "${id}" définitivement ?`))return;
+  const pool=getQuestionsPool().filter(q=>q.id!==id);
+  saveQuestionsPool(pool);renderQAdmin();
+}
+
+function openQEditor(id){
+  QA_EDITING_ID=id;
+  const pool=getQuestionsPool();
+  const q=id?pool.find(x=>x.id===id):null;
+  $('q-modal-title').textContent=q?`Modifier : ${q.id}`:'Nouvelle question';
+  $('qe-id').value=q?q.id:'';
+  $('qe-niveau').value=q?q.lv:2;
+  $('qe-type').value=q?q.tp:'s';
+  $('qe-pr-all').checked=q?q.pr.includes('ALL'):true;
+  $('qe-pr-asso').checked=q?q.pr.includes('ASSOCIATE'):false;
+  $('qe-pr-sen').checked=q?q.pr.includes('SENIOR'):false;
+  $('qe-pr-tl').checked=q?q.pr.includes('TEAM_LEADER'):false;
+  $('qe-bh').value=q?.bh||'';
+  $('qe-question').value=q?q.q:'';
+  $('qe-explication').value=q?q.ex:'';
+  $('q-edit-err').style.display='none';
+  // Build options list
+  const opts=q?.opts||['','','',''];
+  const cor=q?.cor||[];
+  const bw=q?.bw||opts.map(()=>1);
+  buildQeOpts(opts,cor,bw,q?q.tp:'s');
+  toggleQeType();
+  $('q-modal').classList.add('open');
+}
+
+function closeQModal(){$('q-modal').classList.remove('open');}
+
+function buildQeOpts(opts,cor,bw,tp){
+  $('qe-opts-list').innerHTML=opts.map((o,i)=>`
+    <div class="option" style="align-items:center;padding:8px 12px;cursor:default" id="qe-opt-row-${i}">
+      <input type="${tp==='m'?'checkbox':'radio'}" name="qe-cor" id="qe-cor-${i}" ${cor.includes(i)?'checked':''} style="width:16px;height:16px;accent-color:var(--teal);flex-shrink:0" title="Réponse correcte">
+      <input type="text" value="${o.replace(/"/g,'&quot;')}" id="qe-opt-${i}" class="input" style="flex:1;margin:0 8px;font-size:13px" placeholder="Option ${i+1}">
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="removeQeOption(${i})" title="Supprimer">✕</button>
+    </div>`).join('');
+  buildQeBwList(bw,opts.length);
+}
+
+function buildQeBwList(bw,n){
+  $('qe-bw-list').innerHTML=Array.from({length:n},(_,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+      <span style="color:var(--t2);min-width:60px">Option ${i+1}</span>
+      <input type="range" min="0" max="3" value="${bw[i]||1}" id="qe-bw-${i}" style="flex:1;accent-color:var(--teal)" oninput="this.previousElementSibling.previousElementSibling.nextElementSibling.textContent=this.value">
+      <span class="bw-val" style="font-weight:600;min-width:16px">${bw[i]||1}</span>
+    </div>`).join('');
+}
+
+function addQeOption(){
+  const n=$('qe-opts-list').children.length;
+  const tp=$('qe-type').value;
+  $('qe-opts-list').insertAdjacentHTML('beforeend',`
+    <div class="option" style="align-items:center;padding:8px 12px;cursor:default" id="qe-opt-row-${n}">
+      <input type="${tp==='m'?'checkbox':'radio'}" name="qe-cor" id="qe-cor-${n}" style="width:16px;height:16px;accent-color:var(--teal);flex-shrink:0">
+      <input type="text" id="qe-opt-${n}" class="input" style="flex:1;margin:0 8px;font-size:13px" placeholder="Option ${n+1}">
+      <button class="btn btn-ghost btn-sm btn-icon" onclick="removeQeOption(${n})" title="Supprimer">✕</button>
+    </div>`);
+  $('qe-bw-list').insertAdjacentHTML('beforeend',`
+    <div style="display:flex;align-items:center;gap:10px;font-size:13px">
+      <span style="color:var(--t2);min-width:60px">Option ${n+1}</span>
+      <input type="range" min="0" max="3" value="1" id="qe-bw-${n}" style="flex:1;accent-color:var(--teal)" oninput="this.previousElementSibling.previousElementSibling.nextElementSibling.textContent=this.value">
+      <span class="bw-val" style="font-weight:600;min-width:16px">1</span>
+    </div>`);
+}
+
+function removeQeOption(idx){
+  const rows=[...$('qe-opts-list').children];
+  if(rows.length<=2){alert('Minimum 2 options.');return;}
+  rows[idx]?.remove();
+  $('qe-bw-list').children[idx]?.remove();
+}
+
+function toggleQeType(){
+  const tp=$('qe-type').value;
+  $('qe-opts-section').style.display=tp==='o'?'none':'block';
+  $('qe-bw-section').style.display=$('qe-bh').value?'block':'none';
+  // Switch radio <-> checkbox
+  document.querySelectorAll('[name="qe-cor"]').forEach(el=>{el.type=tp==='m'?'checkbox':'radio';});
+}
+
+function saveQEditor(){
+  const id=$('qe-id').value.trim();
+  if(!id){$('q-edit-err').textContent='L\'ID est obligatoire.';$('q-edit-err').style.display='block';return;}
+  const qText=$('qe-question').value.trim();
+  if(!qText){$('q-edit-err').textContent='L\'énoncé est obligatoire.';$('q-edit-err').style.display='block';return;}
+  const profils=[];
+  if($('qe-pr-all').checked)profils.push('ALL');
+  if($('qe-pr-asso').checked)profils.push('ASSOCIATE');
+  if($('qe-pr-sen').checked)profils.push('SENIOR');
+  if($('qe-pr-tl').checked)profils.push('TEAM_LEADER');
+  if(!profils.length){$('q-edit-err').textContent='Sélectionnez au moins un profil.';$('q-edit-err').style.display='block';return;}
+  const tp=$('qe-type').value;
+  let opts=[],cor=[],bw=[];
+  if(tp!=='o'){
+    const n=$('qe-opts-list').children.length;
+    for(let i=0;i<n;i++){
+      const v=$('qe-opt-'+i)?.value.trim()||'';
+      opts.push(v);
+      if($('qe-cor-'+i)?.checked)cor.push(i);
+      bw.push(parseInt($('qe-bw-'+i)?.value||1));
+    }
+    if(tp==='s'&&cor.length!==1){$('q-edit-err').textContent='Sélectionnez exactement 1 réponse correcte pour un QCM simple.';$('q-edit-err').style.display='block';return;}
+    if(tp==='m'&&cor.length<1){$('q-edit-err').textContent='Sélectionnez au moins 1 réponse correcte pour un QCM multiple.';$('q-edit-err').style.display='block';return;}
+  }
+  const bhVal=$('qe-bh').value||null;
+  const newQ={id,lv:parseInt($('qe-niveau').value),tp,pr:profils,bh:bhVal,bw:bhVal?bw:null,q:qText,opts,cor:cor.length?cor:null,ref:null,ex:$('qe-explication').value.trim(),actif:true};
+  const pool=getQuestionsPool();
+  const existIdx=pool.findIndex(x=>x.id===id);
+  if(existIdx>=0){pool[existIdx]=newQ;}else{pool.push(newQ);}
+  saveQuestionsPool(pool);
+  closeQModal();
+  renderQAdmin();
+  $('q-edit-err').style.display='none';
 }
 
 function detLevel(score){
@@ -842,73 +1648,6 @@ function detLevel(score){
   if(score<10)return{key:'l2',label:'Intermédiaire',cmt:"Bonne maîtrise des bases. Certains mécanismes intermédiaires méritent d'être approfondis.",nxt:"Approfondir : réduction générale, DSN, IJSS, assiette CSG, AGIRC-ARRCO, SilaExpert."};
   if(score<15)return{key:'l3',label:'Avancé',cmt:"Solides compétences en gestion de la paie. Quelques points techniques experts à consolider.",nxt:"Travailler : réduction générale avancée, forfait jours, expatriation, cas pratiques complexes."};
   return{key:'l4',label:'Expert',cmt:"Excellente maîtrise technique et réglementaire. Autonomie complète sur les cas complexes.",nxt:null};
-}
-
-function getLevelKey(score){
-  if(score<5)return'l1';if(score<10)return'l2';if(score<15)return'l3';return'l4';
-}
-
-async function finishQuiz(timedOut=false){
-  clearInterval(State.cand.timerID);
-  State.cand.timedOut=timedOut;
-  const answeredCount=State.cand.ans.length;
-  // When timed out: unanswered questions are excluded (score = 0 contribution)
-  // When normal finish: all questions answered (no skip anymore)
-  const rawScore=State.cand.ans.reduce((s,a)=>s+(a.score||0),0);
-  const maxPts=State.cand.qs.length*2||20;
-  const score=parseFloat(Math.max(0,Math.min(20,(rawScore/maxPts)*20)).toFixed(1));
-  const bh=calcBehavioral(State.cand.ans);
-  const lv=detLevel(score);
-  const elapsed=Math.round((Date.now()-State.cand.started)/1000);
-  const session=State.cand.session;
-  // Save result
-  const snapshot=State.cand.ans.map(a=>({q:a.q,selected:a.selected,openText:a.openText,score:a.score,skipped:a.skipped}));
-  const timedOutFlag=State.cand.timedOut||false;
-  const result={pin:session.pin,nom:session.nom||'',prenom:session.prenom||'',profil:session.profil||'',score,niveauLabel:lv.label,bh,dureeReelle:elapsed,timedOut:timedOutFlag,answeredCount:State.cand.ans.length,totalCount:State.cand.qs.length,snapshot,createdAt:new Date().toISOString()};
-  // Update session locally
-  const arr=lsGetSessions();const idx=arr.findIndex(x=>x.pin===session.pin);
-  if(idx>=0){Object.assign(arr[idx],{status:'done',score,niveauLabel:lv.label,bh,dureeReelle:elapsed,timedOut:timedOutFlag,answeredCount:State.cand.ans.length,totalCount:State.cand.qs.length,allowPdf:session.allowPdf,snapshot:JSON.stringify(snapshot),_id:session._id||arr[idx]._id});lsSaveSessions(arr);}
-  lsSaveResult(result);  // Always save result to localStorage too
-  // Save to Airtable
-  if(!!session._id){
-    await atUpdateSession(session._id,{Statut:'terminee'});
-    await atSaveResult(result);
-  }  // end Airtable sync
-
-  // Render results
-  renderResults(score,lv,bh,elapsed,session);
-  setCandStep('results');
-  // Animate score ring
-  setTimeout(()=>{
-    const dash=339;const fill=dash*(score/20);
-    $('score-ring').style.strokeDashoffset=dash-fill;
-  },200);
-}
-
-function renderResults(score,lv,bh,elapsed,session){
-  $('res-score').textContent=score;
-  $('res-name').textContent=session.prenom+' '+session.nom;
-  const lvStyle=LV_PILLS[lv.key]||{bg:'#F1F5F9',c:'#64748B'};
-  $('res-level-pill').style.background=lvStyle.bg;$('res-level-pill').style.color=lvStyle.c;
-  $('res-level-pill').textContent=lv.label;
-  $('res-comment').textContent=lv.cmt;
-  const dlBtn=$('res-download-btn');if(dlBtn)dlBtn.style.display=(session.allowPdf===false)?'none':'';
-  const toNote=$('res-timeout-note');
-  if(toNote){toNote.style.display=State.cand.timedOut?'block':'none';
-  if(State.cand.timedOut){const ac=State.cand.ans.length,tc=State.cand.qs.length;toNote.textContent=`⏱ Temps écoulé — ${ac} question(s) sur ${tc} répondues. Seules les réponses données ont été comptabilisées.`;}}
-  const ans=State.cand.ans;
-  const cor=ans.filter(a=>!a.skipped&&a.score===2).length;
-  const par=ans.filter(a=>!a.skipped&&a.score>0&&a.score<2).length;
-  const wrg=ans.filter(a=>!a.skipped&&a.score<=0&&a.q.tp!=='o').length;
-  const skp=ans.filter(a=>a.skipped).length;
-  const open=ans.filter(a=>a.q.tp==='o'&&!a.skipped).length;
-  $('res-stats').innerHTML=`
-    <div class="rs-card"><div class="rs-lbl">Correctes</div><div class="rs-val" style="color:var(--green)">${cor}</div></div>
-    <div class="rs-card"><div class="rs-lbl">Partielles</div><div class="rs-val" style="color:var(--gold)">${par}</div></div>
-    <div class="rs-card"><div class="rs-lbl">Incorrectes</div><div class="rs-val" style="color:var(--red)">${wrg}</div></div>
-    <div class="rs-card"><div class="rs-lbl">Passées</div><div class="rs-val" style="color:var(--t3)">${skp}</div></div>`;
-  if(open)$('res-stats').innerHTML+=`<div class="rs-card" style="grid-column:span 2"><div class="rs-lbl">Ouvertes (évaluées en entretien)</div><div class="rs-val" style="color:var(--indigo)">${open}</div></div>`;
-  $('res-next-box').innerHTML=lv.nxt?`<div class="next-box">📚 <strong>Points à approfondir :</strong> ${lv.nxt}</div>`:'';
 }
 
 function downloadCandidatePDF(){
@@ -1077,9 +1816,21 @@ function downloadCandidatePDF(){
   doc.save(`correction_paie_${session.nom}_${session.prenom}.pdf`);
 }
 
+async function testAirtable(){
+  const box=$('at-status-text');
+  if(box){box.textContent='Vérification…';box.style.color='var(--t3)';}
+  const r=await atReq('Sessions','GET',null,'','maxRecords=1');
+  if(box){
+    if(r){box.innerHTML='✅ Connexion Airtable opérationnelle';box.style.color='var(--green)';}
+    else{box.innerHTML='❌ Échec — vérifiez la configuration serveur (Netlify Environment variables)';box.style.color='var(--red)';}
+  }
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded',()=>{showScreen('s-landing');});
+document.addEventListener('DOMContentLoaded',()=>{goAdmin();});
+
+$('result-modal')?.addEventListener('click',e=>{if(e.target.id==='result-modal')closeModal();});
 </script>
 </body>
 </html>
