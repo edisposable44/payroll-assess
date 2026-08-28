@@ -362,7 +362,7 @@ select.input{cursor:pointer}
   <div class="sidebar-nav">
     <div class="nav-item active" onclick="switchTab('sessions')" id="nav-sessions"><span class="nav-item-icon">📋</span>Candidats</div>
     <div class="nav-item" onclick="switchTab('new')" id="nav-new"><span class="nav-item-icon">➕</span>Nouveau candidat</div>
-    <div class="nav-item" onclick="switchTab('questions')" id="nav-questions"><span class="nav-item-icon">📚</span>Banque de questions</div>
+    <div class="nav-item" onclick="switchTab('questions')" id="nav-questions" style="display:none"><span class="nav-item-icon">📚</span>Banque de questions</div>
     <div class="nav-item" onclick="switchTab('settings')" id="nav-settings"><span class="nav-item-icon">⚙️</span>Paramètres</div>
     <div class="nav-item" id="nav-admins" onclick="switchTab('admins')" style="display:none"><span class="nav-item-icon">👥</span>Administrateurs</div>
   </div>
@@ -494,9 +494,26 @@ select.input{cursor:pointer}
         </div>
         <button class="btn btn-primary btn-sm" onclick="saveDefaults()">Enregistrer les paramètres</button>
       </div>
+
+      <div class="card" style="border:1px solid var(--border)">
+        <div class="h3" style="margin-bottom:8px">Exporter les résultats</div>
+        <p class="body" style="margin-bottom:12px">Téléchargez un fichier CSV de tous les résultats enregistrés.</p>
+        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 Télécharger CSV</button>
+      </div>
+
       <div class="card">
+        <div class="h3" style="margin-bottom:4px">Mon mot de passe — <span id="settings-pwd-email" style="font-weight:400;color:var(--t3)"></span></div>
+        <p class="body" style="margin-bottom:16px">Ce changement s'applique uniquement au compte actuellement connecté ci-dessus, pas aux autres administrateurs.</p>
+        <div class="input-group"><label class="input-label">Mot de passe actuel</label><input type="password" id="settings-current-pwd" class="input" placeholder="••••••••••"></div>
+        <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="settings-new-pwd1" class="input" placeholder="••••••••••"></div>
+        <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="settings-new-pwd2" class="input" placeholder="••••••••••"></div>
+        <div id="settings-pwd-result" style="display:none;margin-bottom:10px"></div>
+        <button class="btn btn-teal btn-sm" onclick="changeOwnPassword()">Mettre à jour</button>
+      </div>
+
+      <div id="settings-airtable-card" class="card" style="display:none">
         <div class="h3" style="margin-bottom:4px">Connexion Airtable</div>
-        <p class="body" style="margin-bottom:14px">Le token est configuré côté serveur (variables d'environnement Netlify) — jamais exposé dans le navigateur, ni recruteur ni candidat.</p>
+        <p class="body" style="margin-bottom:14px">Réservé au master admin. Le token est configuré côté serveur (variables d'environnement Netlify) — jamais exposé dans le navigateur, ni recruteur ni candidat.</p>
         <div id="at-status-box" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:12px;font-size:13px">
           <span id="at-status-text" style="color:var(--t3)">Statut non vérifié</span>
         </div>
@@ -504,18 +521,6 @@ select.input{cursor:pointer}
         <div class="input-hint" style="margin-top:10px">
           Configuration serveur (une seule fois) : dans Netlify → Site settings → Environment variables, ajoutez <code>AIRTABLE_TOKEN</code> et <code>AIRTABLE_BASE_ID</code>, puis redéployez. Le fichier <code>netlify/functions/airtable.js</code> fourni gère le relais de façon sécurisée.
         </div>
-      </div>
-      <div class="card">
-        <div class="h3" style="margin-bottom:16px">Changer le mot de passe</div>
-        <div class="input-group"><label class="input-label">Nouveau mot de passe</label><input type="password" id="chg-p1" class="input" placeholder="••••••••••"></div>
-        <div class="input-group"><label class="input-label">Confirmer</label><input type="password" id="chg-p2" class="input" placeholder="••••••••••"></div>
-        <div id="chg-err" class="error-msg" style="display:none;margin-bottom:10px"></div>
-        <button class="btn btn-ghost btn-sm" onclick="changePassword()">Mettre à jour</button>
-      </div>
-      <div class="card" style="border:1px solid var(--border)">
-        <div class="h3" style="margin-bottom:8px">Exporter les résultats</div>
-        <p class="body" style="margin-bottom:12px">Téléchargez un fichier CSV de tous les résultats enregistrés.</p>
-        <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📥 Télécharger CSV</button>
       </div>
     </div>
   </div>
@@ -594,14 +599,21 @@ select.input{cursor:pointer}
       <div class="h3" style="margin-bottom:16px">Créer un administrateur délégué</div>
       <div class="input-group"><label class="input-label">Email</label><input type="email" id="new-admin-email" class="input" placeholder="collegue@iipay.com"></div>
       <div class="input-hint" style="margin-bottom:14px">Le canal de notification (ntfy) sera généré automatiquement — vous n'avez rien à demander à l'avance.</div>
+      <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs)">
+        <input type="checkbox" id="new-admin-cmq" style="width:18px;height:18px;margin-top:2px;accent-color:var(--teal);flex-shrink:0">
+        <div>
+          <label for="new-admin-cmq" style="font-weight:600;font-size:13px;cursor:pointer">Autoriser l'accès à la Banque de questions</label>
+          <div class="input-hint" style="margin-top:2px">Par défaut, un administrateur délégué voit uniquement Candidats, Nouveau candidat et Paramètres. Cochez pour lui donner aussi accès à l'édition de la banque de questions.</div>
+        </div>
+      </div>
       <div id="new-admin-err" class="error-msg" style="display:none;margin-bottom:10px"></div>
       <button class="btn btn-teal btn-sm" id="new-admin-submit-btn" onclick="createDelegatedAdmin()">Créer l'administrateur</button>
       <div id="new-admin-result" style="display:none;margin-top:14px;padding:12px 14px;background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--rs);font-size:13px;line-height:1.6"></div>
     </div>
     <div class="table-wrap">
       <table class="table">
-        <thead><tr><th>Email</th><th>Rôle</th><th>Statut</th><th>Mot de passe</th><th>2FA</th><th>Actions</th></tr></thead>
-        <tbody id="admins-tbody"><tr><td colspan="6" class="table-empty">Chargement…</td></tr></tbody>
+        <thead><tr><th>Email</th><th>Rôle</th><th>Statut</th><th>Mot de passe</th><th>2FA</th><th>Banque de questions</th><th>Actions</th></tr></thead>
+        <tbody id="admins-tbody"><tr><td colspan="7" class="table-empty">Chargement…</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -774,7 +786,9 @@ const AdminSession = {
   set role(r){ if(r) sessionStorage.setItem('pa_admin_role',r); else sessionStorage.removeItem('pa_admin_role'); },
   get email(){return sessionStorage.getItem('pa_admin_email')||null;},
   set email(e){ if(e) sessionStorage.setItem('pa_admin_email',e); else sessionStorage.removeItem('pa_admin_email'); },
-  clear(){ sessionStorage.removeItem('pa_admin_token'); sessionStorage.removeItem('pa_admin_role'); sessionStorage.removeItem('pa_admin_email'); },
+  get canManageQuestions(){return sessionStorage.getItem('pa_admin_cmq')==='1';},
+  set canManageQuestions(v){ sessionStorage.setItem('pa_admin_cmq', v?'1':'0'); },
+  clear(){ sessionStorage.removeItem('pa_admin_token'); sessionStorage.removeItem('pa_admin_role'); sessionStorage.removeItem('pa_admin_email'); sessionStorage.removeItem('pa_admin_cmq'); },
   isMaster(){ return this.role==='master'; }
 };
 
@@ -874,7 +888,7 @@ async function submitPasswordReset(){
       if(d.resetToken)PendingResetToken=d.resetToken; else PendingResetToken=null;
       return;
     }
-    onLoginSuccess(d.token,d.role,false,$('forgot-email').value.trim());
+    onLoginSuccess(d.token,d.role,false,$('forgot-email').value.trim(),d.canManageQuestions);
   }catch(e){
     err.textContent='Erreur réseau. Réessayez.';err.style.display='block';
   }finally{
@@ -898,7 +912,7 @@ async function loginAdmin(){
       $('login-step-otp').style.display='block';
       $('otp-input').focus();
     } else {
-      onLoginSuccess(d.token,d.role,d.mustChangePassword,email);
+      onLoginSuccess(d.token,d.role,d.mustChangePassword,email,d.canManageQuestions);
     }
   }catch(e){
     $('login-err').textContent='Erreur réseau. Réessayez.';$('login-err').style.display='block';
@@ -920,7 +934,7 @@ async function verifyOtpCode(){
       if(d.tempToken)PendingOtpToken=d.tempToken; else {PendingOtpToken=null;resetLoginForm();}
       return;
     }
-    onLoginSuccess(d.token,d.role,d.mustChangePassword,$('login-email').value.trim());
+    onLoginSuccess(d.token,d.role,d.mustChangePassword,$('login-email').value.trim(),d.canManageQuestions);
   }catch(e){
     $('otp-err').textContent='Erreur réseau. Réessayez.';$('otp-err').style.display='block';
   }finally{
@@ -928,8 +942,9 @@ async function verifyOtpCode(){
   }
 }
 
-function onLoginSuccess(token,role,mustChange,email){
+function onLoginSuccess(token,role,mustChange,email,canManageQuestions){
   AdminSession.token=token;AdminSession.role=role;AdminSession.email=email;
+  AdminSession.canManageQuestions=!!canManageQuestions;
   if(mustChange){
     $('login-step-creds').style.display='none';
     $('login-step-otp').style.display='none';
@@ -963,7 +978,12 @@ function enterDashboard(){
   resetLoginForm();
   showScreen('s-admin');
   $('admin-user-email').textContent=AdminSession.email||'';
-  $('nav-admins').style.display=AdminSession.isMaster()?'':'none';
+  const isMaster=AdminSession.isMaster();
+  // Master: full access. Delegated admin: Candidats, Nouveau candidat,
+  // Paramètres by default; Banque de questions only if explicitly granted.
+  $('nav-admins').style.display=isMaster?'':'none';
+  $('nav-questions').style.display=(isMaster||AdminSession.canManageQuestions)?'':'none';
+  $('settings-airtable-card').style.display=isMaster?'':'none';
   switchTab('sessions');
 }
 
@@ -976,13 +996,13 @@ function logout(){forceLogout(null);}
 // ─── ADMIN MANAGEMENT (master only: create / reset / list delegated admins) ───
 async function loadAdminsList(){
   if(!AdminSession.isMaster())return;
-  $('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Chargement…</td></tr>';
+  $('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Chargement…</td></tr>';
   try{
     const r=await fetch('/.netlify/functions/admin-list',{headers:{'Authorization':'Bearer '+AdminSession.token}});
     if(r.status===401){forceLogout('Session expirée.');return;}
     const d=await r.json();
-    if(!r.ok||!d.admins){$('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Erreur de chargement.</td></tr>';return;}
-    if(!d.admins.length){$('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Aucun administrateur.</td></tr>';return;}
+    if(!r.ok||!d.admins){$('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Erreur de chargement.</td></tr>';return;}
+    if(!d.admins.length){$('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Aucun administrateur.</td></tr>';return;}
     $('admins-tbody').innerHTML=d.admins.map(a=>{
       const isMaster=a.role==='Master';
       const actions=isMaster?'':`
@@ -997,29 +1017,31 @@ async function loadAdminsList(){
         <td>${a.actif?'<span class="st-open"><span class="status-dot"></span>Actif</span>':'<span class="st-closed"><span class="status-dot"></span>Suspendu</span>'}</td>
         <td>${a.mustChangePassword?'⚠️ En attente':'✅ Défini'}</td>
         <td style="font-size:12px;color:var(--t3)">${a.hasNtfyTopic?'✅':'❌'} ntfy</td>
+        <td>${isMaster?'<span style="color:var(--t3);font-size:12px">— (accès total)</span>':(a.canManageQuestions?'<span class="badge badge-teal" style="font-size:11px">✅ Autorisé</span>':'<span style="color:var(--t3);font-size:12px">Non</span>')}</td>
         <td><div class="actions" style="flex-wrap:wrap;gap:4px">${actions}</div></td>
       </tr>`;
     }).join('');
   }catch(e){
-    $('admins-tbody').innerHTML='<tr><td colspan="6" class="table-empty">Erreur réseau.</td></tr>';
+    $('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Erreur réseau.</td></tr>';
   }
 }
 
 async function createDelegatedAdmin(){
   const email=$('new-admin-email').value.trim();
+  const canManageQuestions=$('new-admin-cmq').checked;
   const err=$('new-admin-err');err.style.display='none';
   if(!email){err.textContent='Email requis.';err.style.display='block';return;}
   const btn=$('new-admin-submit-btn');btn.disabled=true;btn.textContent='Création…';
   try{
-    const r=await fetch('/.netlify/functions/admin-create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email})});
+    const r=await fetch('/.netlify/functions/admin-create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email,canManageQuestions})});
     const d=await r.json();
     if(!r.ok){err.textContent=d.error||'Erreur.';err.style.display='block';return;}
     $('new-admin-result').style.display='block';
-    $('new-admin-result').innerHTML=`✅ Compte créé pour <strong>${d.email}</strong>. Transmettez ces 2 éléments en main propre — ils ne seront plus jamais affichés :<br><br>
+    $('new-admin-result').innerHTML=`✅ Compte créé pour <strong>${d.email}</strong> — accès Banque de questions : ${d.canManageQuestions?'<strong style="color:var(--green)">accordé</strong>':'<strong>non accordé</strong>'}. Transmettez ces 2 éléments en main propre — ils ne seront plus jamais affichés :<br><br>
       <strong>Mot de passe temporaire :</strong><br><span class="mono" style="font-size:16px;font-weight:700;color:var(--navy)">${d.tempPassword}</span><br><br>
       <strong>Canal de notification (topic ntfy) :</strong><br><span class="mono" style="font-size:14px;font-weight:700;color:var(--navy)">${d.ntfyTopic}</span><br>
       <span style="font-size:12px;color:var(--t3)">L'admin doit installer l'app ntfy (ou aller sur ntfy.sh dans un navigateur) puis s'abonner à ce topic exact avant de pouvoir se connecter. Dans les réglages de l'app : activer "Instant delivery" (contourner le mode Doze), laisser "Use another server" décoché.</span>`;
-    $('new-admin-email').value='';
+    $('new-admin-email').value='';$('new-admin-cmq').checked=false;
     loadAdminsList();
   }catch(e){
     err.textContent='Erreur réseau.';err.style.display='block';
@@ -1072,6 +1094,10 @@ async function changeOwnPassword(){
     const d=await r.json();
     if(!r.ok){box.className='error-msg';box.textContent=d.error||'Erreur.';box.style.display='block';return;}
     AdminSession.token=d.token;
+    if(typeof d.canManageQuestions==='boolean'){
+      AdminSession.canManageQuestions=d.canManageQuestions;
+      $('nav-questions').style.display=(AdminSession.isMaster()||d.canManageQuestions)?'':'none';
+    }
     box.className='body';box.style.color='var(--green)';box.textContent='✅ Mot de passe mis à jour.';box.style.display='block';
     $('settings-current-pwd').value='';$('settings-new-pwd1').value='';$('settings-new-pwd2').value='';
   }catch(e){box.className='error-msg';box.textContent='Erreur réseau.';box.style.display='block';}
@@ -1211,13 +1237,14 @@ async function saveNewSession(s){
 }
 
 function switchTab(t){
-  ['sessions','new','settings','questions'].forEach(n=>{
+  ['sessions','new','settings','questions','admins'].forEach(n=>{
     $('tab-'+n)?.classList.toggle('active',n===t);
     $('nav-'+n)?.classList.toggle('active',n===t);
   });
   if(t==='sessions'){loadAndRender();startAutoRefresh();}else{stopAutoRefresh();}
   if(t==='questions'){QA_PAGE=0;renderQAdmin();}
-  if(t==='settings')loadSettings();
+  if(t==='settings'){loadSettings();$('settings-pwd-email').textContent=AdminSession.email||'';}
+  if(t==='admins'){loadAdminsList();}
   if(t==='new'){$('pin-result').style.display='none';$('new-err').style.display='none';$('new-nom').value='';$('new-prenom').value='';$('new-profil').value='';$('new-duree').value=CFG.get('default_duree',7);$('new-nq').value=CFG.get('default_nq',10);}
 }
 
@@ -1547,9 +1574,21 @@ function adminPDF(pin){
   State.cand.session=saved;
 }
 
+// Reads the question pool, self-healing if the browser's localStorage
+// override is corrupt/stale (wrong shape, missing fields, or clearly not a
+// full question set) — falls back to the embedded QUESTIONS array rather
+// than silently rendering nothing.
 function getQuestionsPool(){
   const ov=CFG.get('qa_overrides',null);
-  return ov?ov:[...QUESTIONS];
+  if(!ov)return [...QUESTIONS];
+  const looksValid=Array.isArray(ov)&&ov.length>=Math.floor(QUESTIONS.length*0.5)
+    &&ov.every(q=>q&&typeof q.id==='string'&&typeof q.q==='string'&&Array.isArray(q.pr));
+  if(!looksValid){
+    console.warn('qa_overrides corrompu ou obsolète — retour au pool par défaut.');
+    CFG.set('qa_overrides',null);
+    return [...QUESTIONS];
+  }
+  return ov;
 }
 
 function saveQuestionsPool(arr){
@@ -1598,22 +1637,27 @@ function renderQAdmin(){
   const bhLabel={AUT:'AUT',PRO:'PRO',PRE:'PRE',RES:'RES'};
 
   $('q-tbody').innerHTML=paged.map(q=>{
-    const prBadges=q.pr.map(p=>`<span class="badge ${profColors[p]||'badge-gray'}" style="font-size:10px">${p}</span>`).join(' ');
-    const qTxt=q.q.length>80?q.q.slice(0,80)+'…':q.q;
-    const inactive=q.actif===false?'opacity:.45':'';
-    return `<tr style="${inactive}">
-      <td><span class="mono" style="font-size:11px;color:var(--navy)">${q.id}</span></td>
-      <td><span class="badge badge-${lvColors[q.lv]}">${q.lv}</span></td>
-      <td><span style="font-size:11px;color:var(--t2)">${typeLabel[q.tp]||q.tp}</span></td>
+    try{
+      const prBadges=(q.pr||[]).map(p=>`<span class="badge ${profColors[p]||'badge-gray'}" style="font-size:10px">${p}</span>`).join(' ');
+      const qTxt=(q.q||'').length>80?q.q.slice(0,80)+'…':(q.q||'');
+      const inactive=q.actif===false?'opacity:.45':'';
+      return `<tr style="${inactive}">
+      <td><span class="mono" style="font-size:11px;color:var(--navy)">${q.id||'?'}</span></td>
+      <td><span class="badge badge-${lvColors[q.lv]||'l1'}">${q.lv||'?'}</span></td>
+      <td><span style="font-size:11px;color:var(--t2)">${typeLabel[q.tp]||q.tp||'?'}</span></td>
       <td>${prBadges}</td>
       <td style="font-size:13px;max-width:320px">${qTxt}</td>
-      <td>${q.bh?`<span class="badge badge-gold" style="font-size:10px">${bhLabel[q.bh]}</span>`:'—'}</td>
+      <td>${q.bh?`<span class="badge badge-gold" style="font-size:10px">${bhLabel[q.bh]||q.bh}</span>`:'—'}</td>
       <td><div class="actions">
         <button class="btn btn-ghost btn-sm btn-icon" onclick='openQEditor("${q.id}")' title="Modifier">✏️</button>
         <button class="btn btn-ghost btn-sm btn-icon" onclick='toggleQActive("${q.id}")' title="${q.actif===false?'Activer':'Désactiver'}">${q.actif===false?'👁':'🚫'}</button>
         <button class="btn btn-danger btn-sm btn-icon" onclick='deleteQ("${q.id}")' title="Supprimer">🗑</button>
       </div></td>
     </tr>`;
+    }catch(e){
+      console.warn('Question malformée ignorée:',q,e);
+      return '';
+    }
   }).join('');
 
   // Pagination
