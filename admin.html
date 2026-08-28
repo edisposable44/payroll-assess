@@ -301,7 +301,7 @@ select.input{cursor:pointer}
 
   <div id="login-step-otp" style="display:none">
     <p class="h3" style="margin-bottom:4px">Code de vérification</p>
-    <p class="body" style="margin-bottom:20px">Un code à 6 chiffres a été envoyé sur votre Telegram. Il est valable 5 minutes.</p>
+    <p class="body" style="margin-bottom:20px">Un code à 6 chiffres a été envoyé sur votre appareil (ntfy). Il est valable 5 minutes.</p>
     <div class="input-group"><label class="input-label">Code à 6 chiffres</label>
     <input type="text" id="otp-input" class="input" maxlength="6" inputmode="numeric" placeholder="000000" style="letter-spacing:.3em;text-align:center;font-size:20px;font-weight:700" onkeydown="if(event.key==='Enter')verifyOtpCode()"></div>
     <div id="otp-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
@@ -569,10 +569,8 @@ select.input{cursor:pointer}
     </div>
     <div class="card" style="margin-bottom:20px">
       <div class="h3" style="margin-bottom:16px">Créer un administrateur délégué</div>
-      <div class="two-col">
-        <div class="input-group"><label class="input-label">Email</label><input type="email" id="new-admin-email" class="input" placeholder="collegue@iipay.com"></div>
-        <div class="input-group"><label class="input-label">Telegram Chat ID</label><input type="text" id="new-admin-telegram" class="input" placeholder="123456789"></div>
-      </div>
+      <div class="input-group"><label class="input-label">Email</label><input type="email" id="new-admin-email" class="input" placeholder="collegue@iipay.com"></div>
+      <div class="input-hint" style="margin-bottom:14px">Le canal de notification (ntfy) sera généré automatiquement — vous n'avez rien à demander à l'avance.</div>
       <div id="new-admin-err" class="error-msg" style="display:none;margin-bottom:10px"></div>
       <button class="btn btn-teal btn-sm" id="new-admin-submit-btn" onclick="createDelegatedAdmin()">Créer l'administrateur</button>
       <div id="new-admin-result" style="display:none;margin-top:14px;padding:12px 14px;background:var(--teal-light);border:1px solid var(--teal);border-radius:var(--rs);font-size:13px;line-height:1.6"></div>
@@ -908,7 +906,7 @@ async function loadAdminsList(){
         <td><span class="badge ${a.role==='Master'?'badge-navy':'badge-teal'}">${a.role==='Master'?'Master':'Délégué'}</span></td>
         <td>${a.actif?'<span class="st-open"><span class="status-dot"></span>Actif</span>':'<span class="st-closed"><span class="status-dot"></span>Inactif</span>'}</td>
         <td>${a.mustChangePassword?'⚠️ En attente':'✅ Défini'}</td>
-        <td style="font-size:12px;color:var(--t3)">${a.hasTelegramChatId?'✅':'❌'} Telegram</td>
+        <td style="font-size:12px;color:var(--t3)">${a.hasNtfyTopic?'✅':'❌'} ntfy</td>
         <td>${a.role!=='Master'?`<button class="btn btn-ghost btn-sm" onclick='resetAdminPassword("${a.email}")'>↺ Réinitialiser</button>`:''}</td>
       </tr>`).join('');
   }catch(e){
@@ -918,17 +916,19 @@ async function loadAdminsList(){
 
 async function createDelegatedAdmin(){
   const email=$('new-admin-email').value.trim();
-  const telegramChatId=$('new-admin-telegram').value.trim();
   const err=$('new-admin-err');err.style.display='none';
-  if(!email||!telegramChatId){err.textContent='Email et Telegram Chat ID requis.';err.style.display='block';return;}
+  if(!email){err.textContent='Email requis.';err.style.display='block';return;}
   const btn=$('new-admin-submit-btn');btn.disabled=true;btn.textContent='Création…';
   try{
-    const r=await fetch('/.netlify/functions/admin-create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email,telegramChatId})});
+    const r=await fetch('/.netlify/functions/admin-create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+AdminSession.token},body:JSON.stringify({email})});
     const d=await r.json();
     if(!r.ok){err.textContent=d.error||'Erreur.';err.style.display='block';return;}
     $('new-admin-result').style.display='block';
-    $('new-admin-result').innerHTML=`✅ Compte créé pour <strong>${d.email}</strong>.<br>Mot de passe temporaire (à transmettre en main propre — il ne sera plus affiché) :<br><span class="mono" style="font-size:16px;font-weight:700;color:var(--navy)">${d.tempPassword}</span>`;
-    $('new-admin-email').value='';$('new-admin-telegram').value='';
+    $('new-admin-result').innerHTML=`✅ Compte créé pour <strong>${d.email}</strong>. Transmettez ces 2 éléments en main propre — ils ne seront plus jamais affichés :<br><br>
+      <strong>Mot de passe temporaire :</strong><br><span class="mono" style="font-size:16px;font-weight:700;color:var(--navy)">${d.tempPassword}</span><br><br>
+      <strong>Canal de notification (topic ntfy) :</strong><br><span class="mono" style="font-size:14px;font-weight:700;color:var(--navy)">${d.ntfyTopic}</span><br>
+      <span style="font-size:12px;color:var(--t3)">L'admin doit installer l'app ntfy (ou aller sur ntfy.sh dans un navigateur) puis s'abonner à ce topic exact avant de pouvoir se connecter.</span>`;
+    $('new-admin-email').value='';
     loadAdminsList();
   }catch(e){
     err.textContent='Erreur réseau.';err.style.display='block';
