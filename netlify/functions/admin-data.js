@@ -25,7 +25,7 @@ exports.handler = async function (event) {
   const pf = preflight(event);
   if (pf) return pf;
 
-  const session = requireSession(event);
+  const session = await requireSession(event);
   if (!session) return json(401, { error: 'Session invalide ou expirée. Reconnectez-vous.' });
 
   const params = event.queryStringParameters || {};
