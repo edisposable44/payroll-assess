@@ -80,6 +80,8 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--pag
 .input:focus{border-color:var(--teal)}
 .input::placeholder{color:var(--t3)}
 .input-hint{font-size:11px;color:var(--t3);margin-top:4px}
+.pwd-field-wrap{position:relative;width:100%;box-sizing:border-box}
+.pwd-field-wrap .input{padding-right:40px;box-sizing:border-box}
 .input-error{border-color:var(--red)!important}
 .error-msg{font-size:12px;color:var(--red);margin-top:4px}
 select.input{cursor:pointer}
@@ -121,7 +123,7 @@ select.input{cursor:pointer}
 .admin-panel{display:none}.admin-panel.active{display:block}
 
 /* STATS GRID */
-.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:24px}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px}
 .stat-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t3);margin-bottom:4px}
 .stat-val{font-size:28px;font-weight:700;color:var(--t1);line-height:1}
@@ -256,7 +258,7 @@ select.input{cursor:pointer}
   .admin-layout{grid-template-columns:1fr}
   .admin-sidebar{display:none}
   .admin-content{padding:20px}
-  .stats-grid{grid-template-columns:1fr 1fr}
+  /* .stats-grid now uses auto-fit/minmax above — fluid at all widths, no manual override needed */
   .land-cards{grid-template-columns:1fr}
   .results-stats{grid-template-columns:1fr 1fr}
   .gauge-grid{grid-template-columns:1fr}
@@ -264,8 +266,7 @@ select.input{cursor:pointer}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeUp .25s ease}
 .divider{height:1px;background:var(--border);margin:20px 0}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:480px){.two-col{grid-template-columns:1fr}}
+.two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
 
 
 .badge-timeout{display:inline-flex;align-items:center;gap:3px;background:#DC2626;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:.03em;animation:blink-red 1.1s step-start infinite}
@@ -293,13 +294,15 @@ select.input{cursor:pointer}
   <p class="eyebrow" style="margin-bottom:24px">Espace Administration</p>
 
   <div id="login-step-creds">
+  <form onsubmit="event.preventDefault();loginAdmin();">
     <div class="input-group"><label class="input-label">Email</label>
     <input type="email" id="login-email" class="input" placeholder="vous@iipay.com" autocomplete="username"></div>
     <div class="input-group"><label class="input-label">Mot de passe</label>
-    <div style="position:relative"><input type="password" id="login-pwd" class="input" placeholder="••••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')loginAdmin()" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('login-pwd',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="pwd-field-wrap"><input type="password" id="login-pwd" class="input" placeholder="••••••••••" autocomplete="current-password"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('login-pwd',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
     <div id="login-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
-    <button class="btn btn-primary btn-full" id="login-submit-btn" onclick="loginAdmin()">Accéder</button>
-    <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="showForgotPassword()">Mot de passe oublié ?</button>
+    <button class="btn btn-primary btn-full" id="login-submit-btn" type="submit">Accéder</button>
+    <button class="btn btn-ghost btn-full" type="button" style="margin-top:8px;font-size:13px" onclick="showForgotPassword()">Mot de passe oublié ?</button>
+  </form>
   </div>
 
   <div id="login-step-forgot" style="display:none">
@@ -313,15 +316,17 @@ select.input{cursor:pointer}
   </div>
 
   <div id="login-step-resetpwd" style="display:none">
+  <form onsubmit="event.preventDefault();submitPasswordReset();">
     <p class="h3" style="margin-bottom:4px">Nouveau mot de passe</p>
     <p class="body" style="margin-bottom:20px">Saisissez le code reçu et votre nouveau mot de passe (au moins 10 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial).</p>
     <div class="input-group"><label class="input-label">Code à 6 chiffres</label>
     <input type="text" id="reset-otp-input" class="input" maxlength="6" inputmode="numeric" placeholder="000000" style="letter-spacing:.3em;text-align:center;font-size:20px;font-weight:700"></div>
-    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div style="position:relative"><input type="password" id="reset-new-pwd1" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('reset-new-pwd1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
-    <div class="input-group"><label class="input-label">Confirmer</label><div style="position:relative"><input type="password" id="reset-new-pwd2" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('reset-new-pwd2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div class="pwd-field-wrap"><input type="password" id="reset-new-pwd1" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('reset-new-pwd1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Confirmer</label><div class="pwd-field-wrap"><input type="password" id="reset-new-pwd2" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('reset-new-pwd2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
     <div id="reset-pwd-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
-    <button class="btn btn-teal btn-full" id="reset-pwd-submit-btn" onclick="submitPasswordReset()">Valider et me connecter</button>
-    <button class="btn btn-ghost btn-full" style="margin-top:8px;font-size:13px" onclick="resetLoginForm()">← Retour</button>
+    <button class="btn btn-teal btn-full" id="reset-pwd-submit-btn" type="submit">Valider et me connecter</button>
+    <button class="btn btn-ghost btn-full" type="button" style="margin-top:8px;font-size:13px" onclick="resetLoginForm()">← Retour</button>
+  </form>
   </div>
 
   <div id="login-step-otp" style="display:none">
@@ -335,13 +340,15 @@ select.input{cursor:pointer}
   </div>
 
   <div id="login-step-changepwd" style="display:none">
+  <form onsubmit="event.preventDefault();submitForcedPasswordChange();">
     <p class="h3" style="margin-bottom:4px">Choisissez votre mot de passe</p>
     <p class="body" style="margin-bottom:20px">Première connexion (ou réinitialisation) : définissez votre mot de passe personnel. Au moins 10 caractères, 1 majuscule, 1 minuscule, 1 chiffre, 1 caractère spécial.</p>
-    <div class="input-group"><label class="input-label">Mot de passe temporaire reçu</label><div style="position:relative"><input type="password" id="chpwd-current" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-current',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
-    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div style="position:relative"><input type="password" id="chpwd-new1" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-new1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
-    <div class="input-group"><label class="input-label">Confirmer</label><div style="position:relative"><input type="password" id="chpwd-new2" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-new2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Mot de passe temporaire reçu</label><div class="pwd-field-wrap"><input type="password" id="chpwd-current" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-current',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div class="pwd-field-wrap"><input type="password" id="chpwd-new1" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-new1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+    <div class="input-group"><label class="input-label">Confirmer</label><div class="pwd-field-wrap"><input type="password" id="chpwd-new2" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('chpwd-new2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
     <div id="chpwd-err" class="error-msg" style="display:none;margin-bottom:12px"></div>
-    <button class="btn btn-teal btn-full" id="chpwd-submit-btn" onclick="submitForcedPasswordChange()">Mettre à jour et continuer</button>
+    <button class="btn btn-teal btn-full" id="chpwd-submit-btn" type="submit">Mettre à jour et continuer</button>
+  </form>
   </div>
 </div>
 </div>
@@ -518,11 +525,13 @@ select.input{cursor:pointer}
       <div class="card">
         <div class="h3" style="margin-bottom:4px">Mon mot de passe — <span id="settings-pwd-email" style="font-weight:400;color:var(--t3)"></span></div>
         <p class="body" style="margin-bottom:16px">Ce changement s'applique uniquement au compte actuellement connecté ci-dessus, pas aux autres administrateurs.</p>
-        <div class="input-group"><label class="input-label">Mot de passe actuel</label><div style="position:relative"><input type="password" id="settings-current-pwd" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-current-pwd',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
-        <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div style="position:relative"><input type="password" id="settings-new-pwd1" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-new-pwd1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
-        <div class="input-group"><label class="input-label">Confirmer</label><div style="position:relative"><input type="password" id="settings-new-pwd2" class="input" placeholder="••••••••••" style="padding-right:40px"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-new-pwd2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+        <form onsubmit="event.preventDefault();changeOwnPassword();">
+        <div class="input-group"><label class="input-label">Mot de passe actuel</label><div class="pwd-field-wrap"><input type="password" id="settings-current-pwd" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-current-pwd',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+        <div class="input-group"><label class="input-label">Nouveau mot de passe</label><div class="pwd-field-wrap"><input type="password" id="settings-new-pwd1" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-new-pwd1',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
+        <div class="input-group"><label class="input-label">Confirmer</label><div class="pwd-field-wrap"><input type="password" id="settings-new-pwd2" class="input" placeholder="••••••••••"><button type="button" class="pwd-toggle-btn" onclick="togglePwdVisibility('settings-new-pwd2',this)" tabindex="-1" title="Afficher/masquer le mot de passe">👁</button></div></div>
         <div id="settings-pwd-result" style="display:none;margin-bottom:10px"></div>
-        <button class="btn btn-teal btn-sm" onclick="changeOwnPassword()">Mettre à jour</button>
+        <button class="btn btn-teal btn-sm" type="submit">Mettre à jour</button>
+        </form>
       </div>
     </div>
   </div>
@@ -539,8 +548,8 @@ select.input{cursor:pointer}
     </div>
     <!-- Filtres -->
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px">
-      <div style="flex:2;min-width:160px"><label class="input-label">Recherche</label><input type="text" id="qf-search" class="input" placeholder="Mot clé…" oninput="QA_PAGE=0;renderQAdmin()"></div>
-      <div style="min-width:130px"><label class="input-label">Profil</label>
+      <div style="flex:1 1 200px;min-width:140px"><label class="input-label">Recherche</label><input type="text" id="qf-search" class="input" placeholder="Mot clé…" oninput="QA_PAGE=0;renderQAdmin()"></div>
+      <div style="flex:1 1 110px;min-width:110px"><label class="input-label">Profil</label>
         <select id="qf-profil" class="input" onchange="QA_PAGE=0;renderQAdmin()">
           <option value="">Tous</option>
           <option value="ALL">ALL</option>
@@ -549,7 +558,7 @@ select.input{cursor:pointer}
           <option value="TEAM_LEADER">Team Leader</option>
         </select>
       </div>
-      <div style="min-width:110px"><label class="input-label">Niveau</label>
+      <div style="flex:1 1 90px;min-width:90px"><label class="input-label">Niveau</label>
         <select id="qf-niveau" class="input" onchange="QA_PAGE=0;renderQAdmin()">
           <option value="">Tous</option>
           <option value="1">1 · Débutant</option>
@@ -558,7 +567,7 @@ select.input{cursor:pointer}
           <option value="4">4 · Expert</option>
         </select>
       </div>
-      <div style="min-width:110px"><label class="input-label">Type</label>
+      <div style="flex:1 1 90px;min-width:90px"><label class="input-label">Type</label>
         <select id="qf-type" class="input" onchange="QA_PAGE=0;renderQAdmin()">
           <option value="">Tous</option>
           <option value="s">Simple (QCM)</option>
@@ -566,7 +575,7 @@ select.input{cursor:pointer}
           <option value="o">Ouverte</option>
         </select>
       </div>
-      <div style="min-width:120px"><label class="input-label">Comportemental</label>
+      <div style="flex:1 1 100px;min-width:100px"><label class="input-label">Comportemental</label>
         <select id="qf-bh" class="input" onchange="QA_PAGE=0;renderQAdmin()">
           <option value="">Tous</option>
           <option value="none">Non comportemental</option>
@@ -1009,10 +1018,16 @@ async function loadAdminsList(){
   if(!AdminSession.isMaster())return;
   $('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Chargement…</td></tr>';
   try{
-    const r=await fetch('/.netlify/functions/admin-list',{headers:{'Authorization':'Bearer '+AdminSession.token}});
+    const r=await fetch('/.netlify/functions/admin-list',{headers:{'Content-Type':'application/json','Authorization':'Bearer '+(AdminSession.token||'')}});
     if(r.status===401){forceLogout('Session expirée.');return;}
-    const d=await r.json();
-    if(!r.ok||!d.admins){$('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Erreur de chargement.</td></tr>';return;}
+    if(r.status===404){$('admins-tbody').innerHTML="<tr><td colspan='7' class='table-empty' style='color:var(--red)'>❌ Fonction admin-list.js introuvable (404). Le fichier n'a probablement pas été déployé sur Netlify — vérifiez netlify/functions/admin-list.js.</td></tr>";return;}
+    let d;
+    try{ d=await r.json(); }
+    catch(parseErr){ $('admins-tbody').innerHTML=`<tr><td colspan="7" class="table-empty" style="color:var(--red)">❌ Réponse serveur invalide (HTTP ${r.status}, non-JSON). ${parseErr.message}</td></tr>`;return; }
+    if(!r.ok||!d.admins){
+      $('admins-tbody').innerHTML=`<tr><td colspan="7" class="table-empty" style="color:var(--red)">❌ Erreur serveur (HTTP ${r.status}) : ${(d&&d.error)?d.error:'réponse inattendue'}</td></tr>`;
+      return;
+    }
     if(!d.admins.length){$('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Aucun administrateur.</td></tr>';return;}
     $('admins-tbody').innerHTML=d.admins.map(a=>{
       const isMaster=a.role==='Master';
@@ -1033,7 +1048,8 @@ async function loadAdminsList(){
       </tr>`;
     }).join('');
   }catch(e){
-    $('admins-tbody').innerHTML='<tr><td colspan="7" class="table-empty">Erreur réseau.</td></tr>';
+    console.error('loadAdminsList network error:',e);
+    $('admins-tbody').innerHTML=`<tr><td colspan="7" class="table-empty" style="color:var(--red)">❌ Erreur réseau : ${e.message}. Vérifiez que le site est bien déployé et que /.netlify/functions/admin-list est accessible.</td></tr>`;
   }
 }
 
@@ -1248,6 +1264,12 @@ async function saveNewSession(s){
 }
 
 function switchTab(t){
+  // Reset scroll position of the content pane BEFORE switching — otherwise
+  // a tab switch after scrolling a long list (e.g. 173 questions) leaves the
+  // newly-shown panel's content off-screen below the old scroll offset,
+  // looking exactly like "nothing is there" even though it rendered fine.
+  const contentPane=document.querySelector('.admin-content');
+  if(contentPane)contentPane.scrollTop=0;
   ['sessions','new','settings','questions','admins'].forEach(n=>{
     $('tab-'+n)?.classList.toggle('active',n===t);
     $('nav-'+n)?.classList.toggle('active',n===t);
@@ -1257,6 +1279,9 @@ function switchTab(t){
   if(t==='settings'){loadSettings();$('settings-pwd-email').textContent=AdminSession.email||'';}
   if(t==='admins'){loadAdminsList();}
   if(t==='new'){$('pin-result').style.display='none';$('new-err').style.display='none';$('new-nom').value='';$('new-prenom').value='';$('new-profil').value='';$('new-duree').value=CFG.get('default_duree',7);$('new-nq').value=CFG.get('default_nq',10);}
+  // On mobile (sidebar collapsed to a top bar), close the nav after choosing
+  // a tab so the panel itself becomes visible instead of the reopened menu.
+  document.querySelector('.admin-sidebar')?.classList.remove('mobile-open');
 }
 
 function startAutoRefresh(){stopAutoRefresh();State.refreshId=setInterval(refreshActiveRows,12000);}
