@@ -802,6 +802,14 @@ function selectOpt(el,multi){
   const vb=$('validate-btn');if(vb)vb.disabled=false;
 }
 
+// Reads the currently selected option(s) from the DOM (set by selectOpt via
+// the 'selected' class + data-idx attribute on each .option div) and returns
+// their indices — this was lost during an earlier file split, causing
+// "Valider & Suivant" to throw ReferenceError and silently do nothing.
+function getSelected(){
+  return [...document.querySelectorAll('.option.selected')].map(el=>parseInt(el.dataset.idx,10));
+}
+
 function validateQuestion(){
   const q=State.cand.qs[State.cand.ci];
   const selected=getSelected();

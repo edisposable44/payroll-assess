@@ -1846,6 +1846,13 @@ function detLevel(score){
   return{key:'l4',label:'Expert',cmt:"Excellente maîtrise technique et réglementaire. Autonomie complète sur les cas complexes.",nxt:null};
 }
 
+// Used by showResult() to pick the LV_PILLS badge color for a candidate's
+// score. Was missing from admin.html since the original file split — only
+// existed in index.html — causing "📊 Voir résultats" to throw.
+function getLevelKey(score){
+  if(score<5)return'l1';if(score<10)return'l2';if(score<15)return'l3';return'l4';
+}
+
 function downloadCandidatePDF(){
   if(typeof window.jspdf==='undefined'){alert('jsPDF non disponible. Vérifiez votre connexion internet.');return;}
   const {jsPDF}=window.jspdf;
